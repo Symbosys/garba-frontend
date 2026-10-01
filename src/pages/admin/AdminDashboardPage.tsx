@@ -1,289 +1,202 @@
-import React, { useState } from 'react';
-import { MOCK_ADMIN_ANALYTICS } from '../../data/mockData';
-import { useApp } from '../../context/AppContext';
-import {
-  Users,
-  Calendar,
-  Heart,
-  CreditCard,
-  Crown,
-  ShieldCheck,
-  TrendingUp,
-  Activity,
-  ArrowUpRight,
-  Sparkles
-} from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, CalendarDays, CircleDollarSign, Clock3, RefreshCw, ShieldCheck, Sparkles, UserRoundCheck, UsersRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { adminApi } from '../../api/admin';
+
+const formatMoney = (paise: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100);
 
 export const AdminDashboardPage: React.FC = () => {
-  const { reports, matches, users, events } = useApp();
-  const [timeRange, setTimeRange] = useState('7d');
+  const query = useQuery({ queryKey: ['super-admin', 'dashboard'], queryFn: adminApi.dashboard });
+  if (query.isPending) return <DashboardSkeleton />;
+  if (query.isError) return <ErrorState retry={() => query.refetch()} message={query.error.message} />;
+  const data = query.data;
 
-  const { summary, dailyRegistrations, cityDistribution, revenueByPlan } = MOCK_ADMIN_ANALYTICS;
-
-  const COLORS = ['#A855F7', '#EC4899', '#F59E0B', '#10B981'];
+  const cards = [
+    { label: 'Verified Payments', value: data.payments.verified, hint: formatMoney(data.payments.verifiedRevenuePaise), icon: CircleDollarSign, tone: 'emerald' },
+    { label: 'Unverified Payments', value: data.payments.unverified, hint: 'Waiting for review', icon: Clock3, tone: 'amber' },
+    { label: 'Verified Users', value: data.users.verified, hint: `${data.users.total} total accounts`, icon: UserRoundCheck, tone: 'rose' },
+    { label: 'Unverified Users', value: data.users.unverified, hint: `${data.users.rejected} rejected`, icon: UsersRound, tone: 'violet' },
+  ] as const;
 
   return (
-    <div className="space-y-8">
-      {/* Top Welcome & Season Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white font-heading">
-            Executive Overview & Safety Metrics
+    <div className="mx-auto max-w-7xl space-y-6">
+      {/* Banner */}
+      <section className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-600 via-pink-600 to-amber-600 p-7 shadow-xl shadow-rose-950/10 md:p-10 text-white">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-amber-300/30 blur-3xl" />
+        <div className="relative max-w-2xl">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] backdrop-blur-sm">
+            <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+            Live Verification Console
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
+            Platform Overview &amp; Verification
           </h1>
-          <p className="text-xs text-slate-400">
-            Real-time analytics for Navratri 2026 partner discovery platform.
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-rose-50">
+            Review partner and organizer registrations, verify payment screenshots, approve accounts, and oversee all platform events.
           </p>
         </div>
+      </section>
 
-        <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-          {['7d', '30d', '90d', 'Season'].map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                timeRange === range
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {range.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Metric Cards */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(({ label, value, hint, icon: Icon, tone }) => (
+          <MetricCard key={label} label={label} value={value} hint={hint} icon={Icon} tone={tone} />
+        ))}
+      </section>
 
-      {/* 8 KPI Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Registered Users */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Registered Users</span>
-            <div className="p-2 rounded-xl bg-purple-950 text-purple-400">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.registeredUsers.toLocaleString()}
-          </div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+24.8% this week</span>
-          </div>
-        </div>
-
-        {/* Card 2: Active Users */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Active Daily Users</span>
-            <div className="p-2 rounded-xl bg-pink-950 text-pink-400">
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.activeUsers.toLocaleString()}
-          </div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+18.2% peak festival traffic</span>
-          </div>
-        </div>
-
-        {/* Card 3: Verified Profiles */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Verified Profiles</span>
-            <div className="p-2 rounded-xl bg-emerald-950 text-emerald-400">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.verifiedProfiles.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-purple-300 font-medium">
-            81.2% ID Verification Rate
-          </div>
-        </div>
-
-        {/* Card 4: Upcoming Events */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Festival Events</span>
-            <div className="p-2 rounded-xl bg-amber-950 text-amber-400">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.upcomingEvents}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Across 15 top Indian cities
-          </div>
-        </div>
-
-        {/* Card 5: Partner Requests */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Partner Requests</span>
-            <div className="p-2 rounded-xl bg-purple-950 text-purple-400">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.partnerRequests.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-pink-400 font-bold">
-            940 sent in last 24h
-          </div>
-        </div>
-
-        {/* Card 6: Successful Matches */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Mutual Matches</span>
-            <div className="p-2 rounded-xl bg-rose-950 text-rose-400">
-              <Heart className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.successfulMatches.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-emerald-400 font-bold">
-            34.4% Acceptance Rate
-          </div>
-        </div>
-
-        {/* Card 7: Premium Users */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Premium Members</span>
-            <div className="p-2 rounded-xl bg-amber-950 text-amber-400">
-              <Crown className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-            {summary.premiumUsers}
-          </div>
-          <div className="text-[11px] text-amber-400 font-bold">
-            Festival Pass Most Popular
-          </div>
-        </div>
-
-        {/* Card 8: Today's Revenue */}
-        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Today's Revenue</span>
-            <div className="p-2 rounded-xl bg-emerald-950 text-emerald-400">
-              <CreditCard className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-heading">
-            ₹{summary.todayRevenue.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Passes & Spotlight Upgrades
-          </div>
-        </div>
-      </div>
-
-      {/* Recharts Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Growth & Matching Trends (2 cols) */}
-        <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
+      {/* Split Grid */}
+      <section className="grid gap-6 lg:grid-cols-[1.3fr_.7fr]">
+        {/* Needs Attention */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-white font-heading">
-                Registrations & Mutual Matches Trajectory
-              </h3>
-              <p className="text-xs text-slate-400">Daily growth across Navratri festival season</p>
+              <h2 className="text-lg font-black text-slate-900">Needs Your Attention</h2>
+              <p className="text-xs text-slate-500">Oldest pending registrations first</p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1 text-purple-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-                <span>Requests</span>
-              </div>
-              <div className="flex items-center gap-1 text-pink-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
-                <span>Matches</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-72 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyRegistrations}>
-                <defs>
-                  <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorMatches" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EC4899" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#EC4899" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} />
-                <YAxis stroke="#94A3B8" fontSize={11} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    border: '1px solid #334155',
-                    borderRadius: '16px',
-                    fontSize: '12px'
-                  }}
-                />
-                <Area type="monotone" dataKey="requests" stroke="#8B5CF6" fillOpacity={1} fill="url(#colorRequests)" />
-                <Area type="monotone" dataKey="matches" stroke="#EC4899" fillOpacity={1} fill="url(#colorMatches)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* City Distribution (1 col) */}
-        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-white font-heading">
-              Top Festival Hubs
-            </h3>
-            <p className="text-xs text-slate-400">Active dancers per city</p>
+            <Link to="/admin/users" className="flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-700">
+              Review All <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
 
           <div className="space-y-3">
-            {cityDistribution.map((item, idx) => (
-              <div key={item.city} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-200">{item.city}</span>
-                  <span className="text-purple-400 font-bold">{item.count} dancers ({item.percentage}%)</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full rounded-full festive-gradient"
-                    style={{ width: `${item.percentage * 2}%` }}
-                  />
-                </div>
+            {data.recentPending.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 p-8 text-center text-sm font-semibold text-emerald-800">
+                ✨ All registrations and payments are up to date!
               </div>
-            ))}
-          </div>
-
-          <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-            💡 Ranchi & Ahmedabad leading highest partner request conversion rates this season.
+            ) : (
+              data.recentPending.map((user) => (
+                <Link
+                  key={user.id}
+                  to={`/admin/users?id=${user.id}`}
+                  className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 hover:border-rose-300 hover:bg-rose-50/40 transition"
+                >
+                  <img src={user.photos[0]?.url || '/favicon.svg'} alt="" className="h-11 w-11 rounded-2xl object-cover bg-slate-200" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-900">{user.name}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {user.role === 'PARTNER' ? 'Partner' : 'Event Organizer'} · {user.city}, {user.state}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold text-amber-800 border border-amber-200">
+                    PENDING
+                  </span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
-      </div>
+
+        {/* Right Column Stats */}
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="rounded-2xl bg-violet-100 p-3 text-violet-700">
+                <UsersRound className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">Account Mix</h3>
+                <p className="text-xs text-slate-500">Registered profiles</p>
+              </div>
+            </div>
+            <Progress label="Partners" value={data.users.partners} total={data.users.total} color="bg-rose-500" />
+            <Progress label="Event Organizers" value={data.users.organizers} total={data.users.total} color="bg-violet-600" />
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-2xl bg-amber-100 p-2.5 text-amber-700">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-slate-900">Platform Events</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <MiniStat label="Published" value={data.events.published} />
+              <MiniStat label="Draft" value={data.events.draft} />
+              <MiniStat label="Cancelled" value={data.events.cancelled} />
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
+
+const MetricCard = ({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  icon: React.ElementType;
+  tone: 'emerald' | 'amber' | 'rose' | 'violet';
+}) => {
+  const styles = {
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 border-amber-100',
+    rose: 'bg-rose-50 text-rose-700 border-rose-100',
+    violet: 'bg-violet-50 text-violet-700 border-violet-100',
+  }[tone];
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-bold text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-black text-slate-900">{value.toLocaleString()}</p>
+        </div>
+        <div className={`rounded-2xl p-3 border ${styles}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <p className="mt-4 text-[11px] font-semibold text-slate-500">{hint}</p>
+    </div>
+  );
+};
+
+const Progress = ({ label, value, total, color }: { label: string; value: number; total: number; color: string }) => (
+  <div className="mb-4">
+    <div className="mb-1.5 flex justify-between text-xs">
+      <span className="text-slate-600 font-medium">{label}</span>
+      <strong className="text-slate-900">{value}</strong>
+    </div>
+    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${total ? (value / total) * 100 : 0}%` }} />
+    </div>
+  </div>
+);
+
+const MiniStat = ({ label, value }: { label: string; value: number }) => (
+  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+    <p className="text-xl font-black text-slate-900">{value}</p>
+    <p className="text-[10px] font-bold text-slate-500">{label}</p>
+  </div>
+);
+
+const DashboardSkeleton = () => (
+  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {Array.from({ length: 8 }).map((_, i) => (
+      <div key={i} className="h-36 animate-pulse rounded-3xl bg-slate-200/70" />
+    ))}
+  </div>
+);
+
+const ErrorState = ({ retry, message }: { retry: () => void; message: string }) => (
+  <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center text-slate-900">
+    <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-rose-600" />
+    <p className="font-bold text-slate-900">Dashboard could not load</p>
+    <p className="mt-1 text-xs text-slate-600">{message}</p>
+    <button
+      onClick={retry}
+      className="mx-auto mt-4 flex items-center gap-2 rounded-xl bg-white border border-rose-200 px-4 py-2 text-xs font-bold text-rose-700 shadow-sm"
+    >
+      <RefreshCw className="h-3.5 w-3.5" />
+      Try Again
+    </button>
+  </div>
+);

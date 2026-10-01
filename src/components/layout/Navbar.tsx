@@ -293,10 +293,10 @@ export const Navbar: React.FC = () => {
                         <button
                           key={st.code}
                           onClick={() => {
-                            setSelectedStateCode(st.code);
-                            setSelectedCity(st.defaultCity);
+                            setSelectedStateCode(st.code, st.name, '');
+                            setSelectedCity('');
                             setIsStateDropdownOpen(false);
-                            setIsCityDropdownOpen(true); // Automatically prompt city selection
+                            setIsCityDropdownOpen(true);
                           }}
                           className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all ${
                             selectedStateCode === st.code
@@ -324,14 +324,10 @@ export const Navbar: React.FC = () => {
                         <button
                           key={st.isoCode}
                           onClick={() => {
-                            setSelectedStateCode(st.isoCode);
-                            // Auto pick first city or known default for that state
-                            const stateCities = City.getCitiesOfState('IN', st.isoCode) || [];
-                            if (stateCities.length > 0) {
-                              setSelectedCity(stateCities[0].name);
-                            }
+                            setSelectedStateCode(st.isoCode, st.name, '');
+                            setSelectedCity('');
                             setIsStateDropdownOpen(false);
-                            setIsCityDropdownOpen(true); // Smooth flow: open City dropdown next
+                            setIsCityDropdownOpen(true);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs text-left transition-colors ${
                             isSelected
@@ -369,7 +365,7 @@ export const Navbar: React.FC = () => {
             >
               <span className="text-pink-600 text-xs">🏙️</span>
               <span className="max-w-[85px] sm:max-w-[120px] truncate font-bold text-slate-800">
-                {selectedCity || 'Select City'}
+                {selectedCity || 'All Cities'}
               </span>
               <ChevronDown className={`w-3 h-3 text-slate-600 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -398,6 +394,29 @@ export const Navbar: React.FC = () => {
                     Change State ↺
                   </button>
                 </div>
+
+                {/* Option 1: View Entire State (All Cities) */}
+                <button
+                  onClick={() => {
+                    setSelectedCity('');
+                    setIsCityDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition-all border ${
+                    !selectedCity
+                      ? 'bg-gradient-to-r from-[#FF1E6A] to-rose-500 text-white font-bold border-transparent shadow-sm'
+                      : 'bg-pink-50/50 hover:bg-pink-100/70 text-slate-800 border-pink-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🌐</span>
+                    <span className="font-semibold">All Cities in {currentStateObj?.name || 'State'}</span>
+                  </div>
+                  {!selectedCity && (
+                    <span className="text-[10px] font-bold bg-white/25 px-1.5 py-0.5 rounded text-white">
+                      Active
+                    </span>
+                  )}
+                </button>
 
                 {/* Search Bar */}
                 <div className="relative">

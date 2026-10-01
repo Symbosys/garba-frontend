@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { toast } from 'sonner';
 import {
   User,
   FestivalEvent,
@@ -28,6 +29,37 @@ import {
 } from '../data/mockData';
 import { storageService } from '../services/storageService';
 import { calculateMatchScore } from '../utils/matching';
+import { useAuth } from './AuthContext';
+import type { AuthUser } from '../api/types';
+import { useLocationStore } from '../store/useLocationStore';
+
+const mapAuthenticatedUser = (user: AuthUser): User => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  avatar: user.photos[0]?.url || '/favicon.svg',
+  age: user.age || 18,
+  gender: user.gender === 'MALE' ? 'Male' : user.gender === 'FEMALE' ? 'Female' : user.gender === 'NON_BINARY' ? 'Non-Binary' : 'Other',
+  city: user.city,
+  area: user.state,
+  bio: '',
+  garbaLevel: 'Beginner',
+  dandiyaLevel: 'Beginner',
+  danceStyle: 'Traditional',
+  lookingFor: ['Partner'],
+  preferredGender: 'Any',
+  preferredAgeMin: 18,
+  preferredAgeMax: 35,
+  preferredEvents: [],
+  availability: { dates: [], startTime: '19:00', endTime: '23:00' },
+  isVerified: { mobile: true, email: true, photo: user.photos.length > 0 },
+  role: user.role === 'SUPER_ADMIN' ? 'admin' : 'user',
+  isPremium: false,
+  profileCompletion: 70,
+  joinedAt: user.createdAt,
+  status: user.status === 'SUSPENDED' ? 'suspended' : 'active',
+});
 
 interface ToastInfo {
   id: string;
@@ -59,7 +91,8 @@ interface AppContextType {
   // State & City
   cities: CityInfo[];
   selectedStateCode: string;
-  setSelectedStateCode: (stateCode: string) => void;
+  selectedStateName: string;
+  setSelectedStateCode: (stateCode: string, explicitName?: string, defaultCity?: string) => void;
   selectedCity: string;
   setSelectedCity: (city: string) => void;
 
@@ -139,10 +172,15 @@ const defaultFilterState: FilterState = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user: authenticatedUser, logout: logoutAuth } = useAuth();
   // Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    return storageService.get<User | null>('currentUser', CURRENT_DEMO_USER);
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(authenticatedUser ? mapAuthenticatedUser(authenticatedUser) : null);
+
+  useEffect(() => {
+    // Keep legacy presentation models synchronized with the API-backed auth identity.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentUser(authenticatedUser ? mapAuthenticatedUser(authenticatedUser) : null);
+  }, [authenticatedUser]);
 
   // Data Collections with localStorage caching
   const [events, setEvents] = useState<FestivalEvent[]>(() => {
@@ -154,8 +192,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [cities] = useState<CityInfo[]>(MOCK_CITIES);
-  const [selectedStateCode, setSelectedStateCode] = useState<string>('JH');
-  const [selectedCity, setSelectedCity] = useState<string>('Ranchi');
+  const {
+    selectedStateCode,
+    selectedStateName,
+    selectedCity,
+    setSelectedStateCode,
+    setSelectedCity,
+  } = useLocationStore();
 
   const [userEvents, setUserEvents] = useState<string[]>(() => {
     return storageService.get<string[]>('userEvents', ['event-ranchi-01']);
@@ -258,17 +301,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storageService.set('blockedUsers', blockedUsers);
   }, [blockedUsers]);
 
-  // Toast helper
+  // Toast helper with Sonner
   const showToast = (title: string, message?: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
-    const id = `toast-${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
+    const description = message && message.trim() ? message : undefined;
+    if (type === 'error') {
+      toast.error(title, { description });
+    } else if (type === 'success') {
+      toast.success(title, { description });
+    } else if (type === 'warning') {
+      toast.warning(title, { description });
+    } else {
+      toast.info(title, { description });
+    }
   };
 
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const removeToast = (_id: string) => {
+    toast.dismiss();
   };
 
   // Auth Methods
@@ -295,6 +343,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logout = () => {
+    logoutAuth();
     setCurrentUser(null);
     showToast('Logged out successfully', 'See you on the dance floor!', 'info');
   };
@@ -770,8 +819,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider
       value={{
         currentUser,
-        isLoggedIn: !!currentUser,
-        isAdmin: currentUser?.role === 'admin',
+        isLoggedIn: !!authenticatedUser,
+        isAdmin: authenticatedUser?.role === 'SUPER_ADMIN',
         login,
         loginAsDemoUser,
         loginAsDemoAdmin,
@@ -788,6 +837,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         cities,
         selectedStateCode,
+        selectedStateName,
         setSelectedStateCode,
         selectedCity,
         setSelectedCity,

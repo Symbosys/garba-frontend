@@ -1,294 +1,259 @@
-import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
-import { FestivalEvent } from '../../types';
-import {
-  Calendar,
-  Plus,
-  Search,
-  MapPin,
-  CheckCircle2,
-  X,
-  Edit,
-  Trash2,
-  Sparkles,
-  Ticket
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarDays, ChevronLeft, ChevronRight, Eye, LoaderCircle, MapPin, Search, Ticket, X } from 'lucide-react';
+import { adminApi } from '../../api/admin';
+import type { AdminEvent, EventStatus } from '../../api/types';
 
 export const AdminEventsPage: React.FC = () => {
-  const { events, addNewEvent, showToast } = useApp();
   const [search, setSearch] = useState('');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [status, setStatus] = useState<'' | EventStatus>('');
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Form State
-  const [title, setTitle] = useState('');
-  const [city, setCity] = useState('Ranchi');
-  const [venue, setVenue] = useState('');
-  const [date, setDate] = useState('2026-10-18');
-  const [price, setPrice] = useState(499);
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<FestivalEvent['category']>('Garba Night');
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
-  const filteredEvents = events.filter(
-    (e) =>
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.city.toLowerCase().includes(search.toLowerCase()) ||
-      e.venue.toLowerCase().includes(search.toLowerCase())
-  );
+  const events = useQuery({
+    queryKey: ['super-admin', 'events', status, debouncedSearch, page],
+    queryFn: () =>
+      adminApi.events({
+        status: status || undefined,
+        search: debouncedSearch || undefined,
+        page,
+        limit: 12,
+      }),
+  });
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newEvent: FestivalEvent = {
-      id: `event-${Date.now()}`,
-      slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      title,
-      tagline: 'Premier Festival Celebration 2026',
-      bannerImage: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
-      city,
-      venue,
-      address: `${venue}, ${city}`,
-      date,
-      displayDate: '18 October 2026',
-      startTime: '19:00',
-      endTime: '23:30',
-      price: Number(price),
-      isFeatured: true,
-      organizer: {
-        name: 'City Cultural Committee',
-        verified: true
-      },
-      description,
-      rules: ['Traditional wear mandatory', 'Strictly 18+ for partner discovery'],
-      whatToExpect: ['Live Dhol orchestra', 'Massive dance ground'],
-      safetyInfo: ['On-site medical desk and police liaison'],
-      registeredCount: 45,
-      lookingForPartnerCount: 18,
-      groupsCount: 4,
-      category
-    };
-
-    addNewEvent(newEvent);
-    setIsCreateOpen(false);
-    setTitle('');
-    setVenue('');
-    setDescription('');
-  };
+  const detail = useQuery({
+    queryKey: ['super-admin', 'event', selectedId],
+    queryFn: () => adminApi.event(selectedId!),
+    enabled: Boolean(selectedId),
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-white font-heading">
-            Festival Event Management
-          </h1>
-          <p className="text-xs text-slate-400">
-            Publish, curate, and monitor festival grounds across all cities.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="py-2.5 px-5 rounded-xl font-bold text-xs text-white festive-gradient hover:opacity-95 shadow-md flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Create New Event
-        </button>
+    <div className="mx-auto max-w-7xl space-y-6 text-slate-900">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-600">Live Event Directory</p>
+        <h1 className="mt-1 text-3xl font-black text-slate-900">Platform Events</h1>
+        <p className="mt-1 text-sm text-slate-500">View and oversee every event published by approved event organizers.</p>
       </div>
 
-      {/* Search Bar */}
-      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_240px_auto]">
+        <label className="relative">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search event by name, ground, or city..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 text-xs text-white border border-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            placeholder="Search event, organizer, venue or city…"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-rose-500 focus:bg-white"
           />
+        </label>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as '' | EventStatus);
+            setPage(1);
+          }}
+          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-rose-500 cursor-pointer"
+        >
+          <option value="">All statuses</option>
+          <option value="PUBLISHED">Published</option>
+          <option value="DRAFT">Draft</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+        <div className="grid place-items-center rounded-xl bg-slate-100 px-5 text-xs font-bold text-slate-600">
+          {events.data?.pagination.total ?? 0} Events
         </div>
       </div>
 
-      {/* Events Table */}
-      <div className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-              <tr>
-                <th className="p-4">Event & Category</th>
-                <th className="p-4">City / Venue</th>
-                <th className="p-4">Date & Timing</th>
-                <th className="p-4">Registered Dancers</th>
-                <th className="p-4">Price</th>
-                <th className="p-4">Featured</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {filteredEvents.map((ev) => (
-                <tr key={ev.id} className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4">
-                    <div className="font-bold text-white leading-tight">{ev.title}</div>
-                    <span className="text-[10px] text-purple-400">{ev.category}</span>
-                  </td>
-
-                  <td className="p-4">
-                    <div className="font-semibold text-slate-200">{ev.city}</div>
-                    <span className="text-[10px] text-slate-500 truncate block max-w-xs">{ev.venue}</span>
-                  </td>
-
-                  <td className="p-4">
-                    <div>{ev.displayDate}</div>
-                    <span className="text-[10px] text-slate-400">{ev.startTime} - {ev.endTime}</span>
-                  </td>
-
-                  <td className="p-4">
-                    <span className="font-bold text-white">{ev.registeredCount} attendees</span>
-                    <span className="text-[10px] text-pink-400 block font-semibold">{ev.lookingForPartnerCount} need partner</span>
-                  </td>
-
-                  <td className="p-4 font-bold text-emerald-400">
-                    ₹{ev.price}
-                  </td>
-
-                  <td className="p-4">
-                    {ev.isFeatured ? (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-800">
-                        Featured ★
-                      </span>
-                    ) : (
-                      <span className="text-slate-500 text-[10px]">Standard</span>
-                    )}
-                  </td>
-
-                  <td className="p-4 text-right">
-                    <button
-                      onClick={() => showToast('Event edit modal ready', ev.title, 'info')}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 mr-1"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {events.isPending ? (
+        <LoadingRows />
+      ) : events.isError ? (
+        <ErrorBox message={events.error.message} retry={() => events.refetch()} />
+      ) : events.data.items.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-14 text-center text-slate-500">
+          <CalendarDays className="mx-auto mb-3 h-10 w-10 text-slate-400" />
+          No events match your current filter.
         </div>
-      </div>
-
-      {/* Create Event Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full text-white space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-bold text-lg">Create Festival Event</h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
+      ) : (
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {events.data.items.map((event) => (
+              <EventCard key={event.id} event={event} onOpen={() => setSelectedId(event.id)} />
+            ))}
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">
+              Page {events.data.pagination.page} of {Math.max(1, events.data.pagination.pages)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                disabled={page >= events.data.pagination.pages}
+                onClick={() => setPage(page + 1)}
+                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-
-            <form onSubmit={handleCreateSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Event Title</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Ranchi Mega Dandiya Raas 2026"
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">City</label>
-                  <input
-                    type="text"
-                    required
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold"
-                  >
-                    <option value="Garba Night">Garba Night</option>
-                    <option value="Dandiya Raas">Dandiya Raas</option>
-                    <option value="Mega Utsav">Mega Utsav</option>
-                    <option value="Traditional Mandli">Traditional Mandli</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Venue Address</label>
-                <input
-                  type="text"
-                  required
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  placeholder="e.g. Morabadi Football Ground"
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Event Date</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Pass Price (₹)</label>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(parseInt(e.target.value) || 499)}
-                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Event Description</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Details on live band, sound setup, and rules..."
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-white festive-gradient"
-                >
-                  Publish Event
-                </button>
-              </div>
-            </form>
           </div>
         </div>
+      )}
+
+      {selectedId && (
+        <EventDrawer
+          event={detail.data}
+          loading={detail.isPending}
+          error={detail.isError ? detail.error.message : undefined}
+          onClose={() => setSelectedId(null)}
+        />
       )}
     </div>
   );
 };
+
+const EventCard = ({ event, onOpen }: { event: AdminEvent; onOpen: () => void }) => (
+  <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition">
+    <div className="relative aspect-[16/9] bg-slate-100">
+      <img src={event.images[0]?.url || '/dashboard-banner.jpg'} alt="" className="h-full w-full object-cover" />
+      <span
+        className={`absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-sm ${
+          event.status === 'PUBLISHED'
+            ? 'bg-emerald-500 text-white'
+            : event.status === 'DRAFT'
+            ? 'bg-amber-500 text-white'
+            : 'bg-slate-600 text-white'
+        }`}
+      >
+        {event.status}
+      </span>
+    </div>
+    <div className="p-5">
+      <h2 className="truncate text-base font-black text-slate-900">{event.title}</h2>
+      <p className="mt-0.5 truncate text-xs font-semibold text-rose-600">by {event.organizer.name}</p>
+      <div className="mt-3.5 space-y-1.5 text-xs text-slate-600">
+        <p className="flex items-center gap-2">
+          <MapPin className="h-3.5 w-3.5 text-amber-600" />
+          {event.venueName}, {event.city}
+        </p>
+        <p className="flex items-center gap-2">
+          <CalendarDays className="h-3.5 w-3.5 text-rose-600" />
+          {new Date(event.startsAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+        </p>
+        <p className="flex items-center gap-2">
+          <Ticket className="h-3.5 w-3.5 text-emerald-600" />₹{(event.entryFeePaise / 100).toLocaleString('en-IN')}
+        </p>
+      </div>
+      <button
+        onClick={onOpen}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
+      >
+        <Eye className="h-3.5 w-3.5" />
+        View Details
+      </button>
+    </div>
+  </article>
+);
+
+const EventDrawer = ({
+  event,
+  loading,
+  error,
+  onClose,
+}: {
+  event?: AdminEvent;
+  loading: boolean;
+  error?: string;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white p-6 sm:p-8 shadow-2xl text-slate-900">
+      <button onClick={onClose} className="ml-auto grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+        <X className="h-4 w-4" />
+      </button>
+
+      {loading ? (
+        <div className="grid h-96 place-items-center">
+          <LoaderCircle className="h-8 w-8 animate-spin text-rose-600" />
+        </div>
+      ) : error || !event ? (
+        <ErrorBox message={error || 'Event not found'} retry={() => location.reload()} />
+      ) : (
+        <div className="space-y-6 mt-4">
+          <div className="grid grid-cols-2 gap-2.5">
+            {event.images.map((image, index) => (
+              <img
+                key={image.id}
+                src={image.url}
+                alt={`${event.title} ${index + 1}`}
+                className={`rounded-2xl object-cover border border-slate-200 ${index === 0 ? 'col-span-2 aspect-[16/9] w-full' : 'aspect-square'}`}
+              />
+            ))}
+          </div>
+
+          <div>
+            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+              {event.status}
+            </span>
+            <h2 className="mt-2 text-2xl font-black text-slate-900">{event.title}</h2>
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600">{event.description}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              ['Organizer', event.organizer.name],
+              ['Organizer Status', event.organizer.status],
+              ['Venue', event.venueName],
+              ['Location', `${event.city}, ${event.state}`],
+              ['Starts', new Date(event.startsAt).toLocaleString('en-IN')],
+              ['Ends', new Date(event.endsAt).toLocaleString('en-IN')],
+              ['Entry Fee', `₹${(event.entryFeePaise / 100).toLocaleString('en-IN')}`],
+              ['Capacity', event.capacity?.toLocaleString('en-IN') || 'Not Set'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-slate-50 border border-slate-100 p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-800">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+            <p className="font-bold text-slate-900">Organizer Contact</p>
+            <p className="mt-1">
+              {event.organizer.email} · {event.organizer.phone}
+            </p>
+          </div>
+        </div>
+      )}
+    </aside>
+  </div>
+);
+
+const LoadingRows = () => (
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} className="h-80 animate-pulse rounded-3xl bg-slate-200/70" />
+    ))}
+  </div>
+);
+
+const ErrorBox = ({ message, retry }: { message: string; retry: () => void }) => (
+  <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center">
+    <p className="font-bold text-rose-700">{message}</p>
+    <button onClick={retry} className="mt-3 rounded-xl bg-white border border-rose-200 px-4 py-2 text-xs font-bold text-rose-700 shadow-sm">
+      Retry
+    </button>
+  </div>
+);

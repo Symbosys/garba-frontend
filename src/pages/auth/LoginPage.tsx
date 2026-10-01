@@ -1,409 +1,217 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, CalendarDays, Eye, EyeOff, LoaderCircle, Lock, Mail, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  Shield,
-  Calendar,
-  MessageCircle,
-  Users,
-  MapPin,
-  Building2,
-  User as UserIcon,
-  ArrowRight
-} from 'lucide-react';
+import { ApiError } from '../../lib/api-client';
+import { GarbaLogo } from '../../components/common/GarbaLogo';
+
+const destination = (role?: string) =>
+  role === 'SUPER_ADMIN' ? '/admin' : role === 'ORGANIZER' ? '/events/my-events' : '/dashboard';
 
 export const LoginPage: React.FC = () => {
-  const { login, loginAsDemoUser, loginAsDemoAdmin, isLoggedIn, isAdmin } = useApp();
+  const { user, isAuthenticated, isRestoring, login } = useAuth();
+  const { showToast } = useApp();
   const navigate = useNavigate();
-
-  // If already logged in, redirect directly to dashboard or admin
-  React.useEffect(() => {
-    if (isLoggedIn) {
-      if (isAdmin) {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [isLoggedIn, isAdmin, navigate]);
-
-  const [role, setRole] = useState<'partner' | 'organizer'>('partner');
-  const [email, setEmail] = useState('user@garbamitra.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  useEffect(() => {
+    if (!isRestoring && isAuthenticated) {
+      navigate(destination(user?.role), { replace: true });
+    }
+  }, [isAuthenticated, isRestoring, navigate, user?.role]);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
     setError('');
 
     try {
-      if (email === 'admin@garbamitra.com' || role === 'organizer') {
-        await login(email, 'admin');
-        navigate('/admin');
-      } else {
-        await login(email, 'user');
-        navigate('/dashboard');
-      }
-    } catch {
-      setError('Invalid email or password. Please try again.');
+      const result = await login(email, password, remember);
+      showToast('Welcome back! 🎉', `Signed in successfully as ${result.user.name}`, 'success');
+      navigate(destination(result.user.role), { replace: true });
+    } catch (caught) {
+      const message = caught instanceof ApiError ? caught.message : 'Unable to sign in. Please verify your credentials.';
+      setError(message);
+      showToast('Sign In Failed', message, 'error');
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
     <div
-      className="min-h-screen w-full relative bg-cover bg-center bg-no-repeat flex items-center justify-center p-4 sm:p-6 lg:p-10"
-      style={{
-        backgroundImage: `linear-gradient(rgba(18, 4, 30, 0.78), rgba(28, 6, 44, 0.85)), url('/login-bg.jpg')`
-      }}
+      className="relative min-h-screen bg-cover bg-center bg-no-repeat text-slate-900 px-4 py-8 md:py-12 overflow-hidden flex flex-col justify-center"
+      style={{ backgroundImage: "url('/login-bg.jpg')" }}
     >
-      {/* Decorative Top Toran / Hanging Lights Glow */}
-      <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-amber-500/10 to-transparent pointer-events-none" />
+      {/* Light Frosted Backdrop Overlay for Garba Aesthetic & Readability */}
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]" />
+      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-rose-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/2 -right-24 h-96 w-96 rounded-full bg-amber-200/35 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-80 w-80 rounded-full bg-orange-200/30 blur-3xl" />
 
-      <div className="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center z-10 py-6">
-        
-        {/* LEFT COLUMN: HERO BRANDING & VALUE PROPOSITIONS */}
-        <div className="lg:col-span-7 text-white space-y-8 lg:pr-6">
-          {/* Logo & Tagline */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-amber-400 p-0.5 shadow-lg flex items-center justify-center">
-              <div className="w-full h-full bg-[#200836] rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
-                  <path d="M14 11C15.6569 11 17 9.65685 17 8C17 6.34315 15.6569 5 14 5C12.3431 5 11 6.34315 11 8C11 9.65685 12.3431 11 14 11Z" fill="#EC4899"/>
-                  <path d="M15.5 14H12.5C10.5 14 9 16 9 18V24H12V34H16V26H17V34H21V22L18.5 16L19.5 14" stroke="#EC4899" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M26 11C27.6569 11 29 9.65685 29 8C29 6.34315 27.6569 5 26 5C24.3431 5 23 6.34315 23 8C23 9.65685 24.3431 11 26 11Z" fill="#14B8A6"/>
-                  <path d="M24.5 14H27.5C29.5 14 31 16 31 18V24H28V34H24V26H23V34H19V22L21.5 16L20.5 14" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-black font-heading tracking-tight leading-none">
-                Garba<span className="text-pink-400">Mitra</span>
-              </div>
-              <div className="text-[11px] text-purple-200/90 font-medium tracking-wide mt-0.5">
-                Find Your Garba Partner
-              </div>
-            </div>
+      <div className="relative mx-auto w-full max-w-6xl grid items-center gap-10 lg:grid-cols-[1.1fr_.9fr]">
+        {/* Left Side: Festive Branding and Highlights */}
+        <section className="hidden lg:flex flex-col justify-center pr-4">
+          <div className="mb-6">
+            <GarbaLogo size="lg" />
           </div>
 
-          {/* Main Hero Headline */}
-          <div className="space-y-3">
-            <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-black font-heading leading-[1.1] tracking-tight">
-              No Partner<br />
-              for Garba?<br />
-              <span className="text-amber-400">We’ve Got You.</span>
-            </h1>
-            <p className="text-sm sm:text-base text-purple-100/90 max-w-xl leading-relaxed pt-1">
-              Join thousands of Garba & Dandiya lovers, find your perfect partner, discover events and make your Navratri unforgettable.
-            </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white/90 px-4 py-2 text-xs font-bold text-rose-700 w-fit mb-6 shadow-sm">
+            <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+            <span>Celebrate Navratri 2026 With Joy & Safety</span>
           </div>
 
-          {/* 4 Value Pillars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 max-w-xl">
-            {/* 1. Verified Profiles */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-pink-600 to-rose-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-pink-500/30">
-                <Shield className="w-5 h-5 text-white fill-white/20" />
+          <h1 className="text-5xl font-black leading-[1.15] tracking-tight text-slate-900">
+            Find Your Garba Partner.{' '}
+            <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-amber-600 bg-clip-text text-transparent">
+              Dance, Celebrate & Connect.
+            </span>
+          </h1>
+
+          <p className="mt-5 text-base leading-relaxed text-slate-700 max-w-lg font-medium">
+            Join India’s premier verified community for Garba & Dandiya enthusiasts. Meet compatible dance partners, discover top venue passes, and enjoy safe celebrations.
+          </p>
+
+          <div className="mt-8 grid max-w-lg grid-cols-3 gap-3.5">
+            <div className="rounded-2xl border border-rose-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:-translate-y-0.5">
+              <div className="mb-2.5 grid h-9 w-9 place-items-center rounded-xl bg-rose-100 text-rose-600">
+                <ShieldCheck className="h-5 w-5" />
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white leading-tight">Verified Profiles</h4>
-                <p className="text-xs text-purple-200/80 mt-0.5">Real people, safe community</p>
-              </div>
+              <p className="text-xs font-bold text-slate-900">Verified Dancers</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Reviewed profiles</p>
             </div>
 
-            {/* 2. Event Based Matching */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-violet-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-purple-600/30">
-                <Calendar className="w-5 h-5 text-white" />
+            <div className="rounded-2xl border border-amber-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:-translate-y-0.5">
+              <div className="mb-2.5 grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600">
+                <CalendarDays className="h-5 w-5" />
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white leading-tight">Event Based Matching</h4>
-                <p className="text-xs text-purple-200/80 mt-0.5">Find partners for the same event</p>
-              </div>
+              <p className="text-xs font-bold text-slate-900">Festival Events</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Citywide nights</p>
             </div>
 
-            {/* 3. Chat Securely */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-orange-500/30">
-                <MessageCircle className="w-5 h-5 text-white" />
+            <div className="rounded-2xl border border-orange-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:-translate-y-0.5">
+              <div className="mb-2.5 grid h-9 w-9 place-items-center rounded-xl bg-orange-100 text-orange-600">
+                <UsersRound className="h-5 w-5" />
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white leading-tight">Chat Securely</h4>
-                <p className="text-xs text-purple-200/80 mt-0.5">Connect after a mutual match</p>
-              </div>
-            </div>
-
-            {/* 4. Join Groups */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-500/30">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white leading-tight">Join Groups</h4>
-                <p className="text-xs text-purple-200/80 mt-0.5">Meet new friends and dance together</p>
-              </div>
+              <p className="text-xs font-bold text-slate-900">Dance Squads</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Group meetups</p>
             </div>
           </div>
+        </section>
 
-          {/* Bottom Floating Stats Pill */}
-          <div className="p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xl max-w-xl grid grid-cols-3 gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-pink-500/30 flex items-center justify-center text-pink-300">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm sm:text-base font-black text-white leading-none">50K+</div>
-                <div className="text-[10px] sm:text-[11px] text-purple-200/80 mt-0.5">Active Members</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 border-l border-white/10 pl-3">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/30 flex items-center justify-center text-purple-300">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm sm:text-base font-black text-white leading-none">500+</div>
-                <div className="text-[10px] sm:text-[11px] text-purple-200/80 mt-0.5">Garba Events</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 border-l border-white/10 pl-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/30 flex items-center justify-center text-amber-300">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm sm:text-base font-black text-white leading-none">15+</div>
-                <div className="text-[10px] sm:text-[11px] text-purple-200/80 mt-0.5">Major Cities</div>
-              </div>
-            </div>
+        {/* Right Side: Clean Professional Light Mode Card */}
+        <section className="rounded-3xl border border-rose-100/90 bg-white/95 p-6 sm:p-10 shadow-2xl shadow-rose-950/10 backdrop-blur-xl">
+          <div className="lg:hidden mb-6 flex justify-center">
+            <GarbaLogo size="md" />
           </div>
-        </div>
 
-        {/* RIGHT COLUMN: LOGIN FORM CARD */}
-        <div className="lg:col-span-5 w-full max-w-md mx-auto">
-          <div className="bg-white rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-5 border border-purple-100">
-            {/* Card Header */}
-            <div className="text-center space-y-1.5">
-              <div className="inline-flex items-center justify-center gap-2 mb-1">
-                <svg className="w-7 h-7" viewBox="0 0 40 40" fill="none">
-                  <path d="M14 11C15.6569 11 17 9.65685 17 8C17 6.34315 15.6569 5 14 5C12.3431 5 11 6.34315 11 8C11 9.65685 12.3431 11 14 11Z" fill="#EC4899"/>
-                  <path d="M15.5 14H12.5C10.5 14 9 16 9 18V24H12V34H16V26H17V34H21V22L18.5 16L19.5 14" stroke="#EC4899" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M26 11C27.6569 11 29 9.65685 29 8C29 6.34315 27.6569 5 26 5C24.3431 5 23 6.34315 23 8C23 9.65685 24.3431 11 26 11Z" fill="#14B8A6"/>
-                  <path d="M24.5 14H27.5C29.5 14 31 16 31 18V24H28V34H24V26H23V34H19V22L21.5 16L20.5 14" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="text-xs font-semibold text-slate-500">Welcome to</span>
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 font-heading">
-                Garba<span className="text-pink-600">Mitra</span>
-              </h2>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                Login to continue and find your Garba partner or manage your events.
-              </p>
+          <div className="mb-7">
+            <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 border border-amber-200/60 mb-2">
+              <Sparkles className="h-3 w-3 text-amber-600" />
+              Welcome to GarbaMitra
             </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Sign In to Your Account</h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">Enter your credentials to access your dashboard</p>
+          </div>
 
-            {/* Role Switcher Tabs */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Find Partner Tab */}
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('partner');
-                  setEmail('user@garbamitra.com');
-                }}
-                className={`p-3 rounded-2xl flex items-center gap-2.5 transition-all text-left border ${
-                  role === 'partner'
-                    ? 'border-pink-500 bg-pink-50/50 shadow-sm ring-1 ring-pink-500/20'
-                    : 'border-slate-100 bg-slate-50/70 hover:bg-slate-100/80 text-slate-600'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  role === 'partner' ? 'bg-pink-500 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  <UserIcon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className={`text-xs font-bold leading-tight ${role === 'partner' ? 'text-pink-600' : 'text-slate-800'}`}>
-                    Find Partner
-                  </div>
-                  <div className="text-[10px] text-slate-500 truncate">Join as a participant</div>
-                </div>
-              </button>
-
-              {/* Event Organizer Tab */}
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('organizer');
-                  setEmail('admin@garbamitra.com');
-                }}
-                className={`p-3 rounded-2xl flex items-center gap-2.5 transition-all text-left border ${
-                  role === 'organizer'
-                    ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/20'
-                    : 'border-slate-100 bg-slate-50/70 hover:bg-slate-100/80 text-slate-600'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  role === 'organizer' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className={`text-xs font-bold leading-tight ${role === 'organizer' ? 'text-blue-600' : 'text-slate-800'}`}>
-                    Event Organizer
-                  </div>
-                  <div className="text-[10px] text-slate-500 truncate">Create and manage events</div>
-                </div>
-              </button>
+          {error && (
+            <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-700 flex items-start gap-3">
+              <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+              <span>{error}</span>
             </div>
+          )}
 
-            {/* Login Form */}
-            <form onSubmit={handleLoginSubmit} className="space-y-3.5">
-              {error && (
-                <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold">
-                  {error}
-                </div>
-              )}
-
-              {/* Email Field */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-800">Email Address</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 bg-white text-xs font-medium text-slate-800 transition-all placeholder:text-slate-400"
-                  />
-                </div>
+          <form onSubmit={submit} className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-slate-700">Email Address</span>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
+                  placeholder="name@example.com"
+                />
               </div>
+            </label>
 
-              {/* Password Field */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800">Password</label>
-                  <Link to="/forgot-password" className="text-[11px] font-bold text-pink-600 hover:text-pink-700">
-                    Forgot Password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 bg-white text-xs font-medium text-slate-800 transition-all placeholder:text-slate-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-slate-700">Password</span>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-11 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
+            </label>
 
-              {/* Remember Me Checkbox */}
-              <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex items-center justify-between text-xs pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-600 font-medium select-none">
                 <input
                   type="checkbox"
-                  id="rememberMe"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded text-pink-600 accent-pink-600 focus:ring-pink-500 cursor-pointer"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 accent-rose-600 cursor-pointer"
                 />
-                <label htmlFor="rememberMe" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">
-                  Remember me
-                </label>
-              </div>
-
-              {/* Submit CTA Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                <span>{isLoading ? 'Signing In...' : 'Login'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-
-            {/* OR Divider */}
-            <div className="relative flex items-center justify-center">
-              <div className="border-t border-slate-100 w-full" />
-              <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                OR
-              </span>
-              <div className="border-t border-slate-100 w-full" />
-            </div>
-
-            {/* Demo Quick Logins Side by Side */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  loginAsDemoUser();
-                  navigate('/dashboard');
-                }}
-                className="p-2.5 rounded-2xl bg-pink-50/70 hover:bg-pink-100/70 border border-pink-100/80 flex items-center gap-2.5 transition-all text-left group"
-              >
-                <div className="w-7 h-7 rounded-xl bg-pink-500 text-white flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-pink-700 group-hover:text-pink-800 leading-tight truncate">
-                    Demo User Login
-                  </div>
-                  <div className="text-[9px] text-pink-500/80 truncate">Explore as a participant</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  loginAsDemoAdmin();
-                  navigate('/admin');
-                }}
-                className="p-2.5 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 border border-blue-100/80 flex items-center gap-2.5 transition-all text-left group"
-              >
-                <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-blue-700 group-hover:text-blue-800 leading-tight truncate">
-                    Demo Organizer Login
-                  </div>
-                  <div className="text-[9px] text-blue-500/80 truncate">Explore as an event organizer</div>
-                </div>
-              </button>
-            </div>
-
-            {/* Bottom Signup Link */}
-            <div className="text-center pt-1 text-xs text-slate-500">
-              <span>Don't have an account? </span>
-              <Link to="/register" className="font-bold text-pink-600 hover:text-pink-700">
-                Sign Up
+                Remember me
+              </label>
+              <Link to="/forgot-password" className="font-bold text-rose-600 hover:text-rose-700 transition">
+                Forgot password?
               </Link>
             </div>
-          </div>
-        </div>
 
+            <button
+              disabled={submitting}
+              type="submit"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 via-pink-600 to-amber-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-600/20 hover:from-rose-700 hover:to-amber-700 transition-all transform active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  <span>Signing In…</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-600">
+              New to GarbaMitra?{' '}
+              <Link to="/register" className="font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2">
+                Create a verified account
+              </Link>
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );
 };
-
