@@ -60,6 +60,50 @@ export interface AdminDashboardData {
   recentPending: AdminUser[];
 }
 
+export interface EventSlot {
+  id: string;
+  eventId?: string;
+  title?: string | null;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  entryFee: number;
+  currency: string;
+  capacity?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface OrganizerEvent {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  venueName: string;
+  addressLine: string;
+  city: string;
+  state: string;
+  postalCode?: string | null;
+  latitude: number | string;
+  longitude: number | string;
+  capacity?: number | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  status: EventStatus;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  images: ApiPhoto[];
+  slots: EventSlot[];
+  organizer?: {
+    id: string;
+    name: string;
+    city: string;
+    state: string;
+    photos: ApiPhoto[];
+  };
+}
+
 export interface AdminEvent {
   id: string;
   title: string;
@@ -71,16 +115,14 @@ export interface AdminEvent {
   state: string;
   latitude: string;
   longitude: string;
-  startsAt: string;
-  endsAt: string;
-  entryFeePaise: number;
-  currency: string;
   capacity?: number | null;
   status: EventStatus;
   createdAt: string;
   images: ApiPhoto[];
+  slots?: EventSlot[];
   organizer: { id: string; name: string; email: string; phone: string; city: string; state: string; status: AccountStatus };
 }
 
 export interface Pagination { page: number; limit: number; total: number; pages: number }
 export interface Paginated<T> { items: T[]; pagination: Pagination }
+

@@ -122,7 +122,7 @@ export const Navbar: React.FC = () => {
 
   // Close popovers on click outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (stateDropdownRef.current && !stateDropdownRef.current.contains(event.target as Node)) {
         setIsStateDropdownOpen(false);
       }
@@ -137,7 +137,11 @@ export const Navbar: React.FC = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   // Close mobile menu on route change
@@ -166,7 +170,7 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         {/* Left: Logo */}
-        <GarbaLogo showTagline={!isScrolled} />
+        <GarbaLogo showTagline={!isScrolled} hideTextOnMobile={true} />
 
         {/* Center: Search Bar (when logged in) or Desktop Nav Links (when public) */}
         {isLoggedIn ? (
@@ -224,7 +228,7 @@ export const Navbar: React.FC = () => {
         )}
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
           {/* 1. SEPARATE STATE SELECTOR DROPDOWN */}
           <div className="relative" ref={stateDropdownRef}>
             <button
@@ -232,21 +236,21 @@ export const Navbar: React.FC = () => {
                 setIsStateDropdownOpen(!isStateDropdownOpen);
                 setIsCityDropdownOpen(false);
               }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-xs font-bold text-purple-950 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/90 rounded-full transition-all shadow-xs"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-purple-950 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/90 rounded-full transition-all shadow-xs"
               title="Select State"
             >
-              <MapPin className="w-3.5 h-3.5 text-pink-600 flex-shrink-0" />
-              <span className="max-w-[90px] sm:max-w-[110px] truncate font-bold">
+              <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-600 flex-shrink-0" />
+              <span className="max-w-[55px] sm:max-w-[110px] truncate font-bold">
                 {currentStateObj ? currentStateObj.name : 'State'}
               </span>
-              <span className="text-[10px] px-1 py-0.2 rounded bg-purple-200/80 text-purple-900 font-extrabold hidden sm:inline">
+              <span className="text-[10px] px-1 py-0.2 rounded bg-purple-200/80 text-purple-900 font-extrabold hidden md:inline">
                 {selectedStateCode}
               </span>
-              <ChevronDown className={`w-3 h-3 text-purple-700 transition-transform ${isStateDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-purple-700 flex-shrink-0 transition-transform ${isStateDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isStateDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-white shadow-2xl border border-purple-100 p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 space-y-2.5">
+              <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:left-0 sm:top-full sm:mt-2 w-auto sm:w-80 rounded-2xl bg-white shadow-2xl border border-purple-100 p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 space-y-2.5">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div>
@@ -360,18 +364,18 @@ export const Navbar: React.FC = () => {
                 setIsCityDropdownOpen(!isCityDropdownOpen);
                 setIsStateDropdownOpen(false);
               }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-xs font-bold text-slate-800 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-full transition-all shadow-xs"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-slate-800 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-full transition-all shadow-xs"
               title="Select City"
             >
-              <span className="text-pink-600 text-xs">🏙️</span>
-              <span className="max-w-[85px] sm:max-w-[120px] truncate font-bold text-slate-800">
+              <span className="text-pink-600 text-xs flex-shrink-0">🏙️</span>
+              <span className="max-w-[65px] sm:max-w-[120px] truncate font-bold text-slate-800">
                 {selectedCity || 'All Cities'}
               </span>
-              <ChevronDown className={`w-3 h-3 text-slate-600 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-slate-600 flex-shrink-0 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isCityDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 sm:w-88 rounded-2xl bg-white shadow-2xl border border-pink-100 p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 space-y-2.5">
+              <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-88 rounded-2xl bg-white shadow-2xl border border-pink-100 p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 space-y-2.5">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div>
@@ -514,17 +518,17 @@ export const Navbar: React.FC = () => {
               <div className="relative" ref={notifDropdownRef}>
                 <button
                   onClick={() => setIsNotifOpen(!isNotifOpen)}
-                  className="relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors"
+                  className="relative p-1.5 sm:p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
                   aria-label="Notifications"
                 >
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-[#FF1E6A] text-white text-[10px] font-extrabold rounded-full flex items-center justify-center">
+                  <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+                  <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#FF1E6A] text-white text-[9px] sm:text-[10px] font-extrabold rounded-full flex items-center justify-center">
                     {unreadNotificationCount > 0 ? unreadNotificationCount : 3}
                   </span>
                 </button>
 
                 {isNotifOpen && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-2xl border border-purple-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 rounded-2xl bg-white shadow-2xl border border-purple-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="flex items-center justify-between pb-2 border-b border-purple-50 px-1">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-bold text-purple-950">Notifications</h4>
@@ -593,10 +597,10 @@ export const Navbar: React.FC = () => {
                 )}
               </div>
 
-              {/* Messages Icon Button */}
+              {/* Messages Icon Button (Desktop only, mobile has bottom bar) */}
               <Link
                 to="/messages"
-                className="relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors"
+                className="hidden md:flex relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
                 aria-label="Messages"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -609,12 +613,12 @@ export const Navbar: React.FC = () => {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 p-1 pl-1 pr-2 rounded-full border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                  className="flex items-center gap-1 sm:gap-2 p-0.5 sm:p-1 pl-0.5 sm:pl-1 pr-1 sm:pr-2 rounded-full border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors shadow-sm flex-shrink-0"
                 >
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-pink-500"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-pink-500 flex-shrink-0"
                   />
                   <div className="hidden sm:flex flex-col text-left">
                     <span className="text-xs font-bold text-slate-900 leading-tight">
@@ -624,7 +628,7 @@ export const Navbar: React.FC = () => {
                       👑 Premium
                     </span>
                   </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-500 flex-shrink-0 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isUserMenuOpen && (
@@ -707,10 +711,10 @@ export const Navbar: React.FC = () => {
           {/* Mobile Hamburger Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 text-slate-700 hover:text-purple-900 rounded-xl hover:bg-purple-50 lg:hidden transition-colors"
+            className="p-1.5 sm:p-2 text-slate-700 hover:text-purple-900 rounded-xl hover:bg-purple-50 lg:hidden transition-colors flex-shrink-0"
             aria-label="Toggle navigation"
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
         </div>
       </div>

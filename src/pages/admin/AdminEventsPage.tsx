@@ -150,10 +150,15 @@ const EventCard = ({ event, onOpen }: { event: AdminEvent; onOpen: () => void })
         </p>
         <p className="flex items-center gap-2">
           <CalendarDays className="h-3.5 w-3.5 text-rose-600" />
-          {new Date(event.startsAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+          {event.slots && event.slots.length > 0
+            ? `${event.slots.length} Slot(s) · ${new Date(event.slots[0]!.slotDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}`
+            : `${new Date(event.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}`}
         </p>
         <p className="flex items-center gap-2">
-          <Ticket className="h-3.5 w-3.5 text-emerald-600" />₹{(event.entryFeePaise / 100).toLocaleString('en-IN')}
+          <Ticket className="h-3.5 w-3.5 text-emerald-600" />
+          {event.slots && event.slots.length > 0
+            ? event.slots[0]!.entryFee === 0 ? 'FREE' : `₹${event.slots[0]!.entryFee}`
+            : 'N/A'}
         </p>
       </div>
       <button
@@ -217,9 +222,7 @@ const EventDrawer = ({
               ['Organizer Status', event.organizer.status],
               ['Venue', event.venueName],
               ['Location', `${event.city}, ${event.state}`],
-              ['Starts', new Date(event.startsAt).toLocaleString('en-IN')],
-              ['Ends', new Date(event.endsAt).toLocaleString('en-IN')],
-              ['Entry Fee', `₹${(event.entryFeePaise / 100).toLocaleString('en-IN')}`],
+              ['Configured Slots', String(event.slots?.length || 0)],
               ['Capacity', event.capacity?.toLocaleString('en-IN') || 'Not Set'],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-slate-50 border border-slate-100 p-3.5">
@@ -228,6 +231,25 @@ const EventDrawer = ({
               </div>
             ))}
           </div>
+
+          {event.slots && event.slots.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">Festival Slots &amp; Passes</p>
+              <div className="space-y-1.5">
+                {event.slots.map((s, idx) => (
+                  <div key={s.id || idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">{s.title || `Slot ${idx + 1}`}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {new Date(s.slotDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })} · {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <span className="font-black text-pink-600">{s.entryFee === 0 ? 'FREE' : `₹${s.entryFee}`}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
             <p className="font-bold text-slate-900">Organizer Contact</p>

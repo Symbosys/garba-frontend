@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { Home, Search, Calendar, MessageCircle, User, Sparkles } from 'lucide-react';
+import { Home, Search, Calendar, MessageCircle, User } from 'lucide-react';
 
 export const MobileBottomNav: React.FC = () => {
   const { isLoggedIn, unreadNotificationCount } = useApp();
@@ -39,15 +39,6 @@ export const MobileBottomNav: React.FC = () => {
         >
           <Search className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Find</span>
-        </NavLink>
-
-        {/* Center Highlight CTA: Quick Match */}
-        <NavLink
-          to="/find-partner"
-          className="flex flex-col items-center -mt-5 bg-gradient-to-tr from-purple-700 via-pink-600 to-amber-500 text-white p-3 rounded-full shadow-lg shadow-pink-500/30 border-2 border-white transform active:scale-95 transition-transform"
-          aria-label="Find Garba Partner"
-        >
-          <Sparkles className="w-5 h-5 animate-pulse" />
         </NavLink>
 
         {/* Events */}

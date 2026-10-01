@@ -7,6 +7,7 @@ import { AdminLayout } from './components/layout/AdminLayout';
 
 // Public Pages
 import { FindPartnerPage } from './pages/public/FindPartnerPage';
+import { PartnerDetailPage } from './pages/public/PartnerDetailPage';
 import { EventsPage } from './pages/public/EventsPage';
 import { EventDetailPage } from './pages/public/EventDetailPage';
 import { CitiesPage } from './pages/public/CitiesPage';
@@ -37,6 +38,12 @@ import { NotificationsPage } from './pages/user/NotificationsPage';
 import { SettingsPage } from './pages/user/SettingsPage';
 import { MyEventsPage } from './pages/user/MyEventsPage';
 
+// Organizer Pages & Layout
+import { OrganizerLayout } from './components/layout/OrganizerLayout';
+import { OrganizerDashboardPage } from './pages/organizer/OrganizerDashboardPage';
+import { OrganizerEventsPage } from './pages/organizer/OrganizerEventsPage';
+import { OrganizerBookingsPage } from './pages/organizer/OrganizerBookingsPage';
+
 // Admin Pages
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
@@ -44,7 +51,7 @@ import { AdminEventsPage } from './pages/admin/AdminEventsPage';
 
 const getRoleDestination = (role?: string) => {
   if (role === 'SUPER_ADMIN') return '/admin';
-  if (role === 'ORGANIZER') return '/events/my-events';
+  if (role === 'ORGANIZER') return '/organizer/dashboard';
   return '/dashboard';
 };
 
@@ -178,6 +185,8 @@ export const App: React.FC = () => {
             {/* Public Discovery Routes */}
             <Route path="/find-partner" element={<FindPartnerPage />} />
             <Route path="/partners" element={<FindPartnerPage />} />
+            <Route path="/partners/:partnerId" element={<PartnerDetailPage />} />
+            <Route path="/partner/:partnerId" element={<PartnerDetailPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/cities" element={<CitiesPage />} />
@@ -257,14 +266,10 @@ export const App: React.FC = () => {
               }
             />
 
-            {/* Organizer Dedicated Routes */}
+            {/* Organizer Dedicated Portal Routes with Dedicated Layout */}
             <Route
               path="/events/my-events"
-              element={
-                <OrganizerRoute>
-                  <MyEventsPage />
-                </OrganizerRoute>
-              }
+              element={<Navigate to="/organizer/events" replace />}
             />
 
             {/* Shared User Profile & Settings */}
@@ -292,6 +297,22 @@ export const App: React.FC = () => {
                 </UserProfileRoute>
               }
             />
+          </Route>
+
+          {/* Organizer Dedicated Console Layout & Routes */}
+          <Route
+            path="/organizer"
+            element={
+              <OrganizerRoute>
+                <OrganizerLayout />
+              </OrganizerRoute>
+            }
+          >
+            <Route index element={<OrganizerDashboardPage />} />
+            <Route path="dashboard" element={<OrganizerDashboardPage />} />
+            <Route path="events" element={<OrganizerEventsPage />} />
+            <Route path="events/:id" element={<OrganizerEventsPage />} />
+            <Route path="bookings" element={<OrganizerBookingsPage />} />
           </Route>
 
           {/* Super Admin Dedicated Console Layout & Routes */}

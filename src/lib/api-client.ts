@@ -17,17 +17,34 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (token) headers.set('Authorization', `Bearer ${token}`);
   headers.set('Accept', 'application/json');
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
-  const payload = await response.json().catch(() => null) as ApiEnvelope<T> & { errors?: unknown } | null;
-  if (!response.ok) {
-    if (response.status === 401) {
-      authStorage.clear();
-      window.dispatchEvent(new Event('garbamitra:unauthorized'));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000); // 60s timeout
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+      signal: init.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const payload = (await response.json().catch(() => null)) as (ApiEnvelope<T> & { errors?: unknown }) | null;
+    if (!response.ok) {
+      if (response.status === 401) {
+        authStorage.clear();
+        window.dispatchEvent(new Event('garbamitra:unauthorized'));
+      }
+      throw new ApiError(payload?.message || 'Unable to complete the request', response.status, payload?.errors);
     }
-    throw new ApiError(payload?.message || 'Unable to complete the request', response.status, payload?.errors);
+    if (!payload?.success) throw new ApiError(payload?.message || 'Invalid server response', response.status);
+    return payload.data;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new ApiError('Request timed out. Please check your network connection and retry.', 408);
+    }
+    throw err;
   }
-  if (!payload?.success) throw new ApiError(payload?.message || 'Invalid server response', response.status);
-  return payload.data;
 }
 
 export const toQueryString = (values: Record<string, string | number | boolean | null | undefined>) => {

@@ -10,6 +10,20 @@ export interface EventOrganizer {
   photos?: ApiPhoto[];
 }
 
+export interface EventSlotItem {
+  id: string;
+  eventId: string;
+  title: string;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  entryFee: number;
+  capacity?: number | null;
+  status: 'OPEN' | 'SOLD_OUT' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EventItem {
   id: string;
   title: string;
@@ -20,17 +34,19 @@ export interface EventItem {
   city: string;
   state: string;
   postalCode?: string;
-  latitude: number;
-  longitude: number;
-  startsAt: string;
-  endsAt: string;
-  entryFeePaise: number;
+  latitude?: number;
+  longitude?: number;
+  startsAt?: string;
+  endsAt?: string;
+  entryFeePaise?: number;
+  entryFee?: number;
   capacity?: number | null;
   contactEmail?: string;
   contactPhone?: string;
   status: EventStatus;
   createdAt: string;
   images: ApiPhoto[];
+  slots?: EventSlotItem[];
   organizer: EventOrganizer;
 }
 

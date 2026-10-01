@@ -187,22 +187,31 @@ export const EventsPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {events.map((event: EventItem) => {
             const isFav = favorites.includes(event.id);
-            const displayDate = new Date(event.startsAt).toLocaleDateString('en-IN', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            });
-            const startTime = new Date(event.startsAt).toLocaleTimeString('en-IN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-            const endTime = new Date(event.endsAt).toLocaleTimeString('en-IN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            const dateVal = event.startsAt || event.createdAt;
+            const endDateVal = event.endsAt || event.startsAt || event.createdAt;
+            const displayDate = dateVal
+              ? new Date(dateVal).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Navratri 2026';
+            const startTime = dateVal
+              ? new Date(dateVal).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '7:00 PM';
+            const endTime = endDateVal
+              ? new Date(endDateVal).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '11:00 PM';
             const bannerUrl =
               event.images?.[0]?.url ||
               'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80';
+            const fee = event.entryFee ?? (event.entryFeePaise !== undefined ? Math.round(event.entryFeePaise / 100) : (event.slots?.[0]?.entryFee ?? 0));
 
             return (
               <div
@@ -236,7 +245,7 @@ export const EventsPage: React.FC = () => {
 
                   {/* Price Badge on Banner */}
                   <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-amber-300 font-extrabold text-xs border border-white/10">
-                    {event.entryFeePaise === 0 ? 'FREE ENTRY' : `₹${(event.entryFeePaise / 100).toFixed(0)}`}
+                    {fee === 0 ? 'FREE ENTRY' : `₹${fee}`}
                   </div>
                 </div>
 

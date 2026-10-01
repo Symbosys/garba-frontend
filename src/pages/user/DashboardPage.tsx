@@ -14,6 +14,7 @@ import {
   Send,
   Camera,
   Check,
+  Eye,
   ArrowRight,
   Loader2,
   CalendarX,
@@ -57,31 +58,36 @@ export const DashboardPage: React.FC = () => {
   // Strictly dynamic events list (NO static/mock fallback)
   const displayEvents = useMemo(() => {
     if (!apiEvents || apiEvents.length === 0) return [];
-    return apiEvents.map((evt: EventItem) => ({
-      id: evt.id,
-      title: evt.title,
-      venue: evt.venueName,
-      addressLine: evt.addressLine,
-      city: evt.city,
-      state: evt.state,
-      displayDate: new Date(evt.startsAt).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      }),
-      startTime: new Date(evt.startsAt).toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      endTime: new Date(evt.endsAt).toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      bannerImage: evt.images?.[0]?.url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
-      isFeatured: true,
-      registeredCount: evt.capacity || 0,
-      lookingForPartnerCount: 0,
-    }));
+    return apiEvents.map((evt: EventItem) => {
+      const primarySlot = evt.slots && evt.slots.length > 0 ? evt.slots[0] : null;
+      const dateVal = primarySlot?.slotDate || evt.startsAt || evt.createdAt;
+      const displayDate = dateVal
+        ? new Date(dateVal).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        : 'Navratri 2026';
+
+      const startTime = primarySlot?.startTime || (evt.startsAt ? new Date(evt.startsAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '7:00 PM');
+      const endTime = primarySlot?.endTime || (evt.endsAt ? new Date(evt.endsAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '11:00 PM');
+
+      return {
+        id: evt.id,
+        title: evt.title,
+        venue: evt.venueName,
+        addressLine: evt.addressLine,
+        city: evt.city,
+        state: evt.state,
+        displayDate,
+        startTime,
+        endTime,
+        bannerImage: evt.images?.[0]?.url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+        isFeatured: true,
+        registeredCount: evt.capacity || 0,
+        lookingForPartnerCount: 0,
+      };
+    });
   }, [apiEvents]);
 
   // 2. Fetch Dynamic Infinite Partners based on selected Navbar location (State & optional City)
@@ -140,6 +146,10 @@ export const DashboardPage: React.FC = () => {
     observer.observe(target);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleOpenViewPartner = (partnerItem: typeof displayPartners[0]) => {
+    navigate(`/partners/${partnerItem.id}`);
+  };
 
   // Selected candidate for request modal
   const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
@@ -204,12 +214,18 @@ export const DashboardPage: React.FC = () => {
     setCurrentEventSlide((prev) => (prev + 1) % displayEvents.length);
   };
 
-  const handleEventClick = () => {
-    navigate('/events');
+  const handleEventClick = (eventId?: string) => {
+    if (eventId) {
+      navigate(`/events/${eventId}`);
+    } else if (displayEvents[currentEventSlide]) {
+      navigate(`/events/${displayEvents[currentEventSlide].id}`);
+    } else {
+      navigate('/events');
+    }
   };
 
   return (
-    <div className="w-full max-w-[1550px] mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-7">
+    <div className="w-full max-w-[1550px] mx-auto px-3 sm:px-6 lg:px-8 py-5 pb-12 space-y-7 overflow-x-hidden">
       {/* 1. HERO FESTIVE BANNER IMAGE */}
       <div className="w-full relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-pink-100 bg-slate-900">
         <img
@@ -309,16 +325,16 @@ export const DashboardPage: React.FC = () => {
 
       {/* 3. DYNAMIC EVENTS SECTION (HORIZONTAL SLIDER) */}
       <div className="space-y-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5 truncate">
               <span>{eventsHeading}</span>
               {!isAllCities && (
-                <span className="text-xs font-normal text-slate-500">({selectedStateName})</span>
+                <span className="text-xs font-normal text-slate-500 truncate">({selectedStateName})</span>
               )}
             </h2>
             {displayEvents.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-pink-50 text-[#FF1E6A] text-[11px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-pink-50 text-[#FF1E6A] text-[11px] font-bold flex-shrink-0">
                 {currentEventSlide + 1} / {displayEvents.length}
               </span>
             )}
@@ -344,13 +360,13 @@ export const DashboardPage: React.FC = () => {
               </div>
             )}
 
-            <button
-              onClick={handleEventClick}
-              className="text-xs font-semibold text-[#FF1E6A] hover:underline flex items-center gap-1"
+            <Link
+              to="/events"
+              className="text-xs font-semibold text-[#FF1E6A] hover:underline flex items-center gap-1 flex-shrink-0"
             >
               <span>Explore All Events</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -379,7 +395,6 @@ export const DashboardPage: React.FC = () => {
             onMouseLeave={() => setIsEventAutoScrollPaused(false)}
             onTouchStart={() => setIsEventAutoScrollPaused(true)}
             onTouchEnd={() => setIsEventAutoScrollPaused(false)}
-            onClick={handleEventClick}
           >
             <div
               className="flex transition-transform duration-700 ease-out"
@@ -389,7 +404,11 @@ export const DashboardPage: React.FC = () => {
                 const isFav = favorites.includes(event.id);
 
                 return (
-                  <div key={event.id || idx} className="w-full flex-shrink-0">
+                  <div
+                    key={event.id || idx}
+                    onClick={() => handleEventClick(event.id)}
+                    className="w-full flex-shrink-0"
+                  >
                     <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-100 flex flex-col md:flex-row items-center gap-5 hover:border-pink-200 transition-colors">
                       <div className="relative w-full md:w-80 h-44 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-900">
                         <img
@@ -398,7 +417,9 @@ export const DashboardPage: React.FC = () => {
                           className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500"
                         />
                         <button
+                          type="button"
                           onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             toggleFavorite(event.id);
                           }}
@@ -435,9 +456,11 @@ export const DashboardPage: React.FC = () => {
 
                         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                           <button
+                            type="button"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
-                              navigate('/events');
+                              navigate(`/events/${event.id}`);
                             }}
                             className="px-5 py-2.5 rounded-xl bg-[#FF1E6A] hover:bg-[#E1145A] text-white text-xs font-semibold shadow-md shadow-pink-500/20 flex items-center gap-1.5 transition-transform active:scale-95"
                           >
@@ -543,7 +566,10 @@ export const DashboardPage: React.FC = () => {
                   key={partner.id}
                   className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between group"
                 >
-                  <div className="relative h-48 sm:h-44 w-full overflow-hidden bg-slate-900">
+                  <Link
+                    to={`/partners/${partner.id}`}
+                    className="relative h-48 sm:h-44 w-full overflow-hidden bg-slate-900 block"
+                  >
                     <img
                       src={partner.avatar}
                       alt={partner.name}
@@ -559,7 +585,12 @@ export const DashboardPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={() => toggleFavorite(partner.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(partner.id);
+                      }}
                       className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white text-[#FF1E6A] shadow-md flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
                       title="Favorite partner"
                     >
@@ -577,19 +608,22 @@ export const DashboardPage: React.FC = () => {
                       <Camera className="w-3 h-3" />
                       <span>{partner.photosCount}</span>
                     </div>
-                  </div>
+                  </Link>
 
                   <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <h4 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                        <Link
+                          to={`/partners/${partner.id}`}
+                          className="flex items-center gap-1.5 min-w-0 hover:text-[#FF1E6A] transition-colors"
+                        >
+                          <h4 className="text-sm sm:text-base font-bold text-slate-900 hover:text-[#FF1E6A] truncate">
                             {partner.name}, {partner.age}
                           </h4>
                           <svg className="w-4 h-4 text-[#0284C7] fill-[#0284C7] flex-shrink-0" viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                           </svg>
-                        </div>
+                        </Link>
 
                         <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${partner.tag.color}`}>
                           {partner.tag.hasStar ? '★ ' : ''}{partner.tag.label}
@@ -603,23 +637,13 @@ export const DashboardPage: React.FC = () => {
                     </div>
 
                     <div className="pt-2 flex items-center gap-2">
-                      {isRequested ? (
-                        <button
-                          disabled
-                          className="flex-1 py-2.5 px-3 rounded-xl bg-purple-100 text-purple-700 text-xs font-bold cursor-default flex items-center justify-center gap-1.5"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Requested</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenRequest(partner)}
-                          className="flex-1 py-2.5 px-3 rounded-xl bg-[#FF1E6A] hover:bg-[#E1145A] text-white text-xs font-bold shadow-md shadow-pink-500/20 flex items-center justify-center gap-1.5 transition-transform active:scale-95"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Request Partner</span>
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleOpenViewPartner(partner)}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs font-bold shadow-md shadow-pink-500/20 flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Partner</span>
+                      </button>
 
                       <Link
                         to="/messages"

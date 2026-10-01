@@ -7,13 +7,15 @@ interface GarbaLogoProps {
   showTagline?: boolean;
   isDark?: boolean;
   className?: string;
+  hideTextOnMobile?: boolean;
 }
 
 export const GarbaLogo: React.FC<GarbaLogoProps> = ({
   size = 'md',
   showTagline = false,
   isDark = false,
-  className = ''
+  className = '',
+  hideTextOnMobile = false,
 }) => {
   const { isLoggedIn, isAdmin } = useApp();
   const targetPath = isLoggedIn ? (isAdmin ? '/admin' : '/dashboard') : '/';
@@ -49,7 +51,7 @@ export const GarbaLogo: React.FC<GarbaLogoProps> = ({
         </svg>
       </div>
 
-      <div className="flex flex-col">
+      <div className={`flex-col ${hideTextOnMobile ? 'hidden sm:flex' : 'flex'}`}>
         <div className="flex items-center tracking-tight">
           <span className={`font-black ${titleSize} font-heading tracking-tight ${isDark ? 'text-white' : 'text-purple-950'}`}>
             Garba
