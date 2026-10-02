@@ -179,7 +179,7 @@ export const Navbar: React.FC = () => {
           : 'bg-white/80 backdrop-blur-sm border-slate-100'
       }`}
     >
-      <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
+      <div className="max-w-[1550px] mx-auto px-2 xs:px-3 sm:px-6 lg:px-8 w-full flex items-center justify-between gap-1 sm:gap-4">
         {/* Left: Logo */}
         <GarbaLogo showTagline={true} hideTextOnMobile={true} />
 
@@ -239,7 +239,7 @@ export const Navbar: React.FC = () => {
         )}
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0 min-w-0">
           {/* 1. SEPARATE STATE SELECTOR DROPDOWN */}
           <div className="relative" ref={stateDropdownRef}>
             <button
@@ -247,11 +247,11 @@ export const Navbar: React.FC = () => {
                 setIsStateDropdownOpen(!isStateDropdownOpen);
                 setIsCityDropdownOpen(false);
               }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-purple-950 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/90 rounded-full transition-all shadow-xs"
+              className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 px-1.5 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] xs:text-[11px] sm:text-xs font-bold text-purple-950 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/90 rounded-full transition-all shadow-xs flex-shrink-0"
               title="Select State"
             >
               <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-600 flex-shrink-0" />
-              <span className="max-w-[55px] sm:max-w-[110px] truncate font-bold">
+              <span className="max-w-[42px] xs:max-w-[65px] sm:max-w-[110px] truncate font-bold">
                 {currentStateObj ? currentStateObj.name : 'State'}
               </span>
               <span className="text-[10px] px-1 py-0.2 rounded bg-purple-200/80 text-purple-900 font-extrabold hidden md:inline">
@@ -375,11 +375,11 @@ export const Navbar: React.FC = () => {
                 setIsCityDropdownOpen(!isCityDropdownOpen);
                 setIsStateDropdownOpen(false);
               }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-slate-800 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-full transition-all shadow-xs"
+              className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 px-1.5 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] xs:text-[11px] sm:text-xs font-bold text-slate-800 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-full transition-all shadow-xs flex-shrink-0"
               title="Select City"
             >
               <span className="text-pink-600 text-xs flex-shrink-0">🏙️</span>
-              <span className="max-w-[65px] sm:max-w-[120px] truncate font-bold text-slate-800">
+              <span className="max-w-[46px] xs:max-w-[75px] sm:max-w-[120px] truncate font-bold text-slate-800">
                 {selectedCity || 'All Cities'}
               </span>
               <ChevronDown className={`w-3 h-3 text-slate-600 flex-shrink-0 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
@@ -528,7 +528,7 @@ export const Navbar: React.FC = () => {
               {/* Messages Icon Button (Desktop only, mobile has bottom bar) */}
               <Link
                 to="/messages"
-                className="relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
+                className="relative p-1 xs:p-1.5 sm:p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
                 aria-label="Messages"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -543,7 +543,7 @@ export const Navbar: React.FC = () => {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-1 sm:gap-2 p-0.5 sm:p-1 pl-0.5 sm:pl-1 pr-1 sm:pr-2 rounded-full border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors shadow-sm flex-shrink-0"
+                  className="flex items-center gap-0.5 xs:gap-1 sm:gap-2 p-0.5 sm:p-1 pl-0.5 sm:pl-1 pr-0.5 sm:pr-2 rounded-full border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors shadow-sm flex-shrink-0"
                 >
                   <img
                     src={currentUser.avatar}

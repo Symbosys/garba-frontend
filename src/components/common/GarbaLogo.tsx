@@ -27,7 +27,7 @@ export const GarbaLogo: React.FC<GarbaLogoProps> = ({
       ? 'w-10 h-10 sm:w-11 sm:h-11'
       : size === 'lg'
       ? 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28'
-      : 'w-13 h-13 sm:w-16 sm:h-16 md:w-[68px] md:h-[68px]';
+      : 'w-11 h-11 xs:w-12 xs:h-12 sm:w-16 sm:h-16 md:w-[68px] md:h-[68px]';
 
   const titleSize =
     size === 'sm'
