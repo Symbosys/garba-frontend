@@ -1,30 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useLocationStore } from '../../store/useLocationStore';
+import { useEvents, EventItem } from '../../hooks/events/useEvents';
+import { useInfiniteUsers, PublicUser } from '../../hooks/users/useUsers';
 import { PartnerCard } from '../../components/partner/PartnerCard';
 import { EmptyState } from '../../components/common/EmptyState';
+import { PartnerCardSkeleton } from '../../components/common/LoadingSkeleton';
 import { calculateMatchScore } from '../../utils/matching';
 import {
   MapPin,
   Calendar,
   Sparkles,
-  Music
+  Music,
+  Loader2,
+  Users
 } from 'lucide-react';
-import { LookingFor } from '../../types';
+import { LookingFor, User, FestivalEvent } from '../../types';
 
 export const FindPartnerPage: React.FC = () => {
   const {
-    users,
-    events,
     cities,
-    selectedCity,
-    setSelectedCity,
     currentUser,
     searchFilters,
     setSearchFilters,
     resetFilters
   } = useApp();
 
+  const { selectedStateName, selectedCity, setSelectedCity } = useLocationStore();
   const [searchParams] = useSearchParams();
 
   // Sync URL search params with state
@@ -43,69 +46,208 @@ export const FindPartnerPage: React.FC = () => {
     if (dateParam) {
       setSearchFilters((prev) => ({ ...prev, date: dateParam }));
     }
-  }, [searchParams]);
+  }, [searchParams, setSelectedCity, setSearchFilters]);
+
+  const isAllCities = !searchFilters.city || !searchFilters.city.trim() || searchFilters.city === 'All Cities';
+
+  // 1. Dynamic Events Fetching from Backend API
+  const {
+    events: apiEvents,
+    isLoading: isEventsLoading
+  } = useEvents({
+    state: selectedStateName || undefined,
+    city: isAllCities ? undefined : searchFilters.city.trim(),
+    status: 'PUBLISHED',
+    limit: 50,
+  });
+
+  // Map API Events to FestivalEvent interface
+  const displayEvents: FestivalEvent[] = useMemo(() => {
+    if (!apiEvents || apiEvents.length === 0) return [];
+    return apiEvents.map((evt: EventItem) => {
+      const primarySlot = evt.slots && evt.slots.length > 0 ? evt.slots[0] : null;
+      const dateVal = primarySlot?.slotDate || evt.startsAt || evt.createdAt;
+      const displayDate = dateVal
+        ? new Date(dateVal).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        : 'Navratri 2026';
+
+      const startTime = primarySlot?.startTime || (evt.startsAt ? new Date(evt.startsAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '7:00 PM');
+      const endTime = primarySlot?.endTime || (evt.endsAt ? new Date(evt.endsAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '11:00 PM');
+
+      return {
+        id: evt.id,
+        slug: evt.id,
+        title: evt.title,
+        tagline: 'Navratri Garba & Dandiya Night 2026',
+        bannerImage: evt.images?.[0]?.url || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+        city: evt.city,
+        venue: evt.venueName,
+        address: evt.addressLine,
+        date: displayDate,
+        displayDate,
+        startTime,
+        endTime,
+        price: 0,
+        isFeatured: true,
+        organizer: {
+          name: evt.organizer?.name || evt.venueName || 'Event Organizer',
+          verified: true,
+        },
+        description: evt.description || '',
+        rules: [],
+        whatToExpect: [],
+        safetyInfo: [],
+        registeredCount: evt.capacity || 128,
+        lookingForPartnerCount: Math.round((evt.capacity || 100) * 0.4),
+        groupsCount: 12,
+        category: 'Garba Night' as const,
+      };
+    });
+  }, [apiEvents]);
+
+  // 2. Dynamic Partners Fetching from Backend API
+  const {
+    users: apiUsers,
+    isLoading: isUsersLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    totalCount: totalPartnersCount
+  } = useInfiniteUsers({
+    state: selectedStateName || undefined,
+    city: isAllCities ? undefined : searchFilters.city.trim(),
+    role: 'PARTNER',
+  });
+
+  // Infinite Scroll Observer Target
+  const observerTargetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const target = observerTargetRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Map PublicUser[] to User[] domain models, strictly filtering out current logged in user
+  const dynamicPartners: User[] = useMemo(() => {
+    if (!apiUsers || apiUsers.length === 0) return [];
+    return apiUsers
+      .filter((u: PublicUser) => !currentUser || u.id !== currentUser.id)
+      .map((u: PublicUser) => {
+        const primaryPhoto = u.photos?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80';
+        const formattedGender = u.gender === 'FEMALE' ? 'Female' : u.gender === 'MALE' ? 'Male' : (u.gender as any) || 'Female';
+        
+        return {
+          id: u.id,
+          name: u.name,
+          email: `${u.name.toLowerCase().replace(/\s+/g, '')}@example.com`,
+          phone: '',
+          avatar: primaryPhoto,
+          age: u.age || 21,
+          gender: formattedGender,
+          city: u.city || searchFilters.city || 'Ranchi',
+          area: u.state || selectedStateName || 'Jharkhand',
+          bio: `Passionate ${formattedGender === 'Female' ? 'Garba' : 'Dandiya'} enthusiast ready for Navratri 2026! Looking for an awesome dance partner.`,
+          garbaLevel: 'Intermediate',
+          dandiyaLevel: 'Intermediate',
+          danceStyle: 'Traditional',
+          lookingFor: ['Partner', 'New Friends'],
+          preferredGender: 'Any',
+          preferredAgeMin: 18,
+          preferredAgeMax: 40,
+          preferredEvents: displayEvents.map((e) => e.id),
+          availability: { dates: [], startTime: '19:00', endTime: '23:00' },
+          isVerified: { mobile: true, email: true, photo: Boolean(u.photos && u.photos.length > 0) },
+          role: 'user',
+          isPremium: false,
+          profileCompletion: 85,
+          joinedAt: u.createdAt || new Date().toISOString(),
+          status: 'active',
+        };
+      });
+  }, [apiUsers, currentUser, searchFilters.city, selectedStateName, displayEvents]);
 
   // Active event object
   const activeEvent =
-    events.find((e) => e.id === searchFilters.eventId) ||
-    events.find((e) => e.city.toLowerCase() === searchFilters.city.toLowerCase()) ||
-    events[0];
+    displayEvents.find((e) => e.id === searchFilters.eventId) ||
+    displayEvents.find((e) => e.city.toLowerCase() === (searchFilters.city || '').toLowerCase()) ||
+    displayEvents[0] ||
+    null;
 
   // Filter & Search computation
-  const filteredPartners = users.filter((u) => {
-    // Exclude current logged in user
-    if (currentUser && u.id === currentUser.id) return false;
+  const filteredPartners = useMemo(() => {
+    return dynamicPartners.filter((u) => {
+      // Strictly exclude current logged in user
+      if (currentUser && u.id === currentUser.id) return false;
 
-    // Filter by tab
-    if (searchFilters.tab === 'need_partner' && !u.lookingFor.includes('Partner')) return false;
-    if (searchFilters.tab === 'groups' && !u.lookingFor.includes('Group')) return false;
-    if (searchFilters.tab === 'new_friends' && !u.lookingFor.includes('New Friends')) return false;
+      // Filter by tab
+      if (searchFilters.tab === 'need_partner' && !u.lookingFor.includes('Partner')) return false;
+      if (searchFilters.tab === 'groups' && !u.lookingFor.includes('Group')) return false;
+      if (searchFilters.tab === 'new_friends' && !u.lookingFor.includes('New Friends')) return false;
 
-    // Filter by gender preference
-    if (searchFilters.genderPreference !== 'Any' && u.gender !== searchFilters.genderPreference) {
-      return false;
-    }
+      // Filter by gender preference
+      if (searchFilters.genderPreference !== 'Any' && u.gender !== searchFilters.genderPreference) {
+        return false;
+      }
 
-    // Filter by age range
-    if (u.age < searchFilters.ageRange[0] || u.age > searchFilters.ageRange[1]) {
-      return false;
-    }
+      // Filter by age range
+      if (u.age < searchFilters.ageRange[0] || u.age > searchFilters.ageRange[1]) {
+        return false;
+      }
 
-    // Filter by dance level
-    if (searchFilters.danceLevel !== 'All' && u.garbaLevel !== searchFilters.danceLevel) {
-      return false;
-    }
+      // Filter by dance level
+      if (searchFilters.danceLevel !== 'All' && u.garbaLevel !== searchFilters.danceLevel) {
+        return false;
+      }
 
-    // Filter by looking for
-    if (searchFilters.lookingFor !== 'All' && !u.lookingFor.includes(searchFilters.lookingFor as LookingFor)) {
-      return false;
-    }
+      // Filter by looking for
+      if (searchFilters.lookingFor !== 'All' && !u.lookingFor.includes(searchFilters.lookingFor as LookingFor)) {
+        return false;
+      }
 
-    // Filter by style
-    if (searchFilters.style !== 'All' && u.danceStyle !== searchFilters.style && u.danceStyle !== 'All Styles') {
-      return false;
-    }
+      // Filter by style
+      if (searchFilters.style !== 'All' && u.danceStyle !== searchFilters.style && u.danceStyle !== 'All Styles') {
+        return false;
+      }
 
-    // Filter only verified
-    if (searchFilters.onlyVerified && !u.isVerified.photo) {
-      return false;
-    }
+      // Filter only verified
+      if (searchFilters.onlyVerified && !u.isVerified.photo) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [dynamicPartners, currentUser, searchFilters]);
 
   // Sort candidates by match score
-  const sortedPartners = [...filteredPartners].sort((a, b) => {
-    const scoreA = calculateMatchScore(currentUser, a, activeEvent).score;
-    const scoreB = calculateMatchScore(currentUser, b, activeEvent).score;
-    if (searchFilters.sortBy === 'match') {
-      return scoreB - scoreA;
-    }
-    return 0;
-  });
+  const sortedPartners = useMemo(() => {
+    return [...filteredPartners].sort((a, b) => {
+      const scoreA = calculateMatchScore(currentUser, a, activeEvent).score;
+      const scoreB = calculateMatchScore(currentUser, b, activeEvent).score;
+      if (searchFilters.sortBy === 'match') {
+        return scoreB - scoreA;
+      }
+      return 0;
+    });
+  }, [filteredPartners, currentUser, activeEvent, searchFilters.sortBy]);
 
-  const availableEventsInCity = events.filter(
-    (e) => e.city.toLowerCase() === searchFilters.city.toLowerCase()
+  const availableEventsInCity = displayEvents.filter(
+    (e) => !searchFilters.city || e.city.toLowerCase() === searchFilters.city.toLowerCase()
   );
 
   return (
@@ -116,20 +258,23 @@ export const FindPartnerPage: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/20 text-pink-300 text-xs font-bold uppercase tracking-wider mb-2 border border-pink-500/30">
               <Sparkles className="w-3.5 h-3.5" />
-              Event-Based Partner Discovery
+              Live Registered Partners
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black font-heading">
               Find Your Garba & Dandiya Partner
             </h1>
             <p className="text-xs sm:text-sm text-purple-200/80 mt-1">
-              Showing verified dancers attending <strong className="text-amber-300">{activeEvent?.title}</strong> in {searchFilters.city}.
+              Showing verified registered dancers attending {activeEvent ? <strong className="text-amber-300">{activeEvent.title}</strong> : 'upcoming events'} in {searchFilters.city || selectedStateName}.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-purple-300/30 text-xs font-bold text-pink-200">
-              <span className="text-white text-base font-black mr-1">{activeEvent?.registeredCount || 128}</span>
-              Dancers registered for this event
+            <div className="px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-purple-300/30 text-xs font-bold text-pink-200 flex items-center gap-2">
+              <Users className="w-4 h-4 text-pink-400" />
+              <span>
+                <strong className="text-white text-base font-black mr-1">{totalPartnersCount || sortedPartners.length}</strong>
+                Registered Partners
+              </span>
             </div>
           </div>
         </div>
@@ -147,7 +292,7 @@ export const FindPartnerPage: React.FC = () => {
               onChange={(e) => {
                 const newCity = e.target.value;
                 setSelectedCity(newCity);
-                const firstEvent = events.find((ev) => ev.city.toLowerCase() === newCity.toLowerCase());
+                const firstEvent = displayEvents.find((ev) => ev.city.toLowerCase() === newCity.toLowerCase());
                 setSearchFilters((prev) => ({
                   ...prev,
                   city: newCity,
@@ -156,6 +301,7 @@ export const FindPartnerPage: React.FC = () => {
               }}
               className="w-full bg-transparent font-bold text-xs sm:text-sm text-white focus:outline-none cursor-pointer"
             >
+              <option value="" className="text-slate-900">All Cities in {selectedStateName}</option>
               {cities.map((c) => (
                 <option key={c.id} value={c.name} className="text-slate-900">
                   {c.name}
@@ -178,15 +324,17 @@ export const FindPartnerPage: React.FC = () => {
               {availableEventsInCity.length > 0 ? (
                 availableEventsInCity.map((ev) => (
                   <option key={ev.id} value={ev.id} className="text-slate-900">
-                    {ev.title} ({ev.displayDate})
+                    {ev.title} ({ev.displayDate || ev.date})
                   </option>
                 ))
-              ) : (
-                events.map((ev) => (
+              ) : displayEvents.length > 0 ? (
+                displayEvents.map((ev) => (
                   <option key={ev.id} value={ev.id} className="text-slate-900">
                     {ev.title} ({ev.city})
                   </option>
                 ))
+              ) : (
+                <option value="" className="text-slate-900">All Upcoming Events</option>
               )}
             </select>
           </div>
@@ -242,7 +390,13 @@ export const FindPartnerPage: React.FC = () => {
           </span>
         </div>
 
-        {sortedPartners.length === 0 ? (
+        {isUsersLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <PartnerCardSkeleton key={`skeleton-${idx}`} />
+            ))}
+          </div>
+        ) : sortedPartners.length === 0 ? (
           <div className="bg-white rounded-3xl p-8 border border-purple-100 shadow-sm">
             <EmptyState
               type="partners"
@@ -263,6 +417,16 @@ export const FindPartnerPage: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/* Infinite Scroll Bottom Loading Indicator & Intersection Target */}
+        <div ref={observerTargetRef} className="py-6 flex items-center justify-center">
+          {isFetchingNextPage && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 text-purple-800 text-xs font-semibold shadow-sm border border-purple-100">
+              <Loader2 className="w-4 h-4 animate-spin text-pink-600" />
+              Loading more partners...
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

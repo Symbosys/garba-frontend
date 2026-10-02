@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const { events, users, cities, selectedCity, setSelectedCity, setSearchFilters } = useApp();
+  const { events, users, cities, selectedCity, setSelectedCity, setSearchFilters, currentUser } = useApp();
   const navigate = useNavigate();
 
   // Search card state
@@ -52,8 +52,8 @@ export const HomePage: React.FC = () => {
   // Top featured events
   const featuredEvents = events.slice(0, 4);
 
-  // Recommended partners preview
-  const featuredPartners = users.slice(0, 3);
+  // Recommended partners preview (strictly exclude logged in user)
+  const featuredPartners = users.filter((u) => !currentUser || u.id !== currentUser.id).slice(0, 3);
 
   return (
     <div className="space-y-16 pb-16">

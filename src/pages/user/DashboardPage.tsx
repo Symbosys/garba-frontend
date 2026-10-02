@@ -31,6 +31,7 @@ import { useStartConversation, useConversations } from '../../hooks/chat/useChat
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const {
+    currentUser,
     favorites,
     toggleFavorite,
     hasRequestedPartner,
@@ -105,28 +106,30 @@ export const DashboardPage: React.FC = () => {
     role: 'PARTNER',
   });
 
-  // Strictly dynamic partners list (NO static/mock fallback)
+  // Strictly dynamic partners list (NO static/mock fallback & exclude current user)
   const displayPartners = useMemo(() => {
     if (!apiUsers || apiUsers.length === 0) return [];
-    return apiUsers.map((u: PublicUser) => ({
-      id: u.id,
-      name: u.name,
-      age: u.age || 18,
-      gender: u.gender,
-      city: u.city,
-      state: u.state,
-      garbaLevel: 'Beginner',
-      dandiyaLevel: 'Beginner',
-      date: new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-      matchScore: 'Verified Partner',
-      matchColor: 'bg-[#0D9488]',
-      tag: { label: u.role === 'PARTNER' ? 'Partner' : 'Member', color: 'bg-pink-50 text-[#FF1E6A]', hasStar: true },
-      online: true,
-      photosCount: `${u.photos?.length || 0} Photos`,
-      avatar: u.photos?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-      rawUser: u,
-    }));
-  }, [apiUsers]);
+    return apiUsers
+      .filter((u: PublicUser) => !currentUser || u.id !== currentUser.id)
+      .map((u: PublicUser) => ({
+        id: u.id,
+        name: u.name,
+        age: u.age || 18,
+        gender: u.gender,
+        city: u.city,
+        state: u.state,
+        garbaLevel: 'Beginner',
+        dandiyaLevel: 'Beginner',
+        date: new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+        matchScore: 'Verified Partner',
+        matchColor: 'bg-[#0D9488]',
+        tag: { label: u.role === 'PARTNER' ? 'Partner' : 'Member', color: 'bg-pink-50 text-[#FF1E6A]', hasStar: true },
+        online: true,
+        photosCount: `${u.photos?.length || 0} Photos`,
+        avatar: u.photos?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+        rawUser: u,
+      }));
+  }, [apiUsers, currentUser]);
 
   // Infinite Scroll Observer Target
   const observerTargetRef = useRef<HTMLDivElement>(null);
