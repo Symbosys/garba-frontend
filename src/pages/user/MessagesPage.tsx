@@ -113,7 +113,7 @@ export const MessagesPage: React.FC = () => {
         name: partnerName,
         age: c.partner?.age || undefined,
         avatar: c.partner?.avatar || defaultAvatar,
-        isOnline: true,
+        isOnline: false,
         isVerified: true,
         city: c.partner?.city || undefined,
         state: c.partner?.state || undefined,
@@ -437,7 +437,7 @@ export const MessagesPage: React.FC = () => {
                             }}
                           />
                         )}
-                        {conv.isOnline && (
+                        {(conv.id === selectedConvId ? isTyping : conv.isOnline) && (
                           <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                         )}
                       </div>
@@ -509,7 +509,7 @@ export const MessagesPage: React.FC = () => {
                           )}`;
                         }}
                       />
-                      {activeConversation.isOnline && (
+                      {isTyping && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                       )}
                     </div>
@@ -529,16 +529,8 @@ export const MessagesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Header Right Action Buttons: Phone & More */}
+                  {/* Header Right Action Buttons */}
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setIsShareModalOpen(true)}
-                      className="p-2 rounded-full text-slate-700 hover:text-[#E60067] hover:bg-pink-50 transition-colors cursor-pointer"
-                      title="Call Partner"
-                    >
-                      <Phone className="w-5 h-5" />
-                    </button>
-
                     <div className="relative">
                       <button
                         onClick={() => setShowOptionsMenu(!showOptionsMenu)}
@@ -549,27 +541,7 @@ export const MessagesPage: React.FC = () => {
                       </button>
 
                       {showOptionsMenu && (
-                        <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white shadow-2xl border border-slate-100 p-1.5 z-30 text-xs font-semibold animate-in fade-in zoom-in-95">
-                          <button
-                            onClick={() => {
-                              setIsShareModalOpen(true);
-                              setShowOptionsMenu(false);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-pink-50 cursor-pointer"
-                          >
-                            <Phone className="w-3.5 h-3.5 text-[#E60067]" />
-                            Share Contact
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsReportModalOpen(true);
-                              setShowOptionsMenu(false);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Flag className="w-3.5 h-3.5" />
-                            Report Partner
-                          </button>
+                        <div className="absolute right-0 mt-2 w-44 rounded-2xl bg-white shadow-2xl border border-slate-100 p-1.5 z-30 text-xs font-semibold animate-in fade-in zoom-in-95">
                           <button
                             onClick={() => {
                               setIsBlockModalOpen(true);
