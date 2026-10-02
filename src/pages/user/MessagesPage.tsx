@@ -152,6 +152,7 @@ export const MessagesPage: React.FC = () => {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLengthRef = useRef(0);
 
   // 2. Active Chat hook with real-time WebSocket connection
@@ -315,14 +316,20 @@ export const MessagesPage: React.FC = () => {
     });
   }, [conversationList, activeTab, searchQuery]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSendMessage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const text = inputText.trim();
+    if (!text) return;
 
     // Send real-time message over WebSocket
-    sendMessage(inputText.trim());
+    sendMessage(text);
     sendTyping(false);
     setInputText('');
+
+    // Keep mobile keypad / input focus active without closing keyboard
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -738,6 +745,7 @@ export const MessagesPage: React.FC = () => {
 
                       {/* Text Input */}
                       <input
+                        ref={inputRef}
                         type="text"
                         value={inputText}
                         onChange={handleInputChange}
@@ -748,6 +756,7 @@ export const MessagesPage: React.FC = () => {
                       {/* Image Upload Icon */}
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer flex-shrink-0"
                         title="Send photo"
                       >
@@ -757,6 +766,7 @@ export const MessagesPage: React.FC = () => {
                       {/* Attachment Paperclip Icon */}
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer flex-shrink-0"
                         title="Attach file"
                       >
@@ -767,8 +777,10 @@ export const MessagesPage: React.FC = () => {
                     {/* Circular Pink Send Button */}
                     <button
                       type="submit"
-                      disabled={!inputText.trim()}
-                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 transition-all active:scale-95 disabled:opacity-40 flex-shrink-0 cursor-pointer"
+                      onMouseDown={(e) => e.preventDefault()}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 transition-all active:scale-95 flex-shrink-0 cursor-pointer ${
+                        !inputText.trim() ? 'opacity-40 pointer-events-none' : 'opacity-100'
+                      }`}
                       title="Send"
                     >
                       <Send className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
