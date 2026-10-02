@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useConversations, useActiveChat } from '../../hooks/chat/useChat';
 import { ShareContactModal } from '../../components/modals/ShareContactModal';
@@ -23,6 +23,7 @@ import {
   Calendar,
   Image as ImageIcon,
   Paperclip,
+  MessageSquare,
 } from 'lucide-react';
 
 interface ChatMessageItem {
@@ -55,140 +56,6 @@ interface DynamicConversationItem {
   unreadCount: number;
   type: 'match' | 'group' | 'organizer';
 }
-
-const DEFAULT_CONVERSATIONS: DynamicConversationItem[] = [
-  {
-    id: 'conv-riya',
-    partnerId: 'user-riya',
-    name: 'Riya',
-    age: 22,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    isOnline: true,
-    isVerified: true,
-    eventName: 'Going to Ranchi Garba Night 2026',
-    lastMessage: "Great! I'm also intermediate...",
-    time: '10:24 AM',
-    unreadCount: 2,
-    type: 'match',
-  },
-  {
-    id: 'conv-rahul',
-    partnerId: 'user-rahul',
-    name: 'Rahul',
-    age: 24,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-    isOnline: true,
-    isVerified: true,
-    eventName: 'Going to Ranchi Garba Night 2026',
-    lastMessage: 'Are you coming with a group...',
-    time: '9:15 AM',
-    unreadCount: 1,
-    type: 'match',
-  },
-  {
-    id: 'conv-neha',
-    partnerId: 'user-neha',
-    name: 'Neha',
-    age: 21,
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-    isOnline: false,
-    isVerified: true,
-    eventName: 'Going to Dandiya Dhoom Extravaganza',
-    lastMessage: "Let's meet at the main gate 😊",
-    time: '8:30 AM',
-    unreadCount: 1,
-    type: 'match',
-  },
-  {
-    id: 'conv-squad',
-    name: 'Garba Squad',
-    avatar: '',
-    isOnline: false,
-    isVerified: true,
-    isGroup: true,
-    eventName: 'Going to Ranchi Garba Night 2026',
-    lastMessage: 'Aditya: Sure, see you there!',
-    time: 'Yesterday',
-    unreadCount: 4,
-    type: 'group',
-  },
-  {
-    id: 'conv-aditya',
-    partnerId: 'user-aditya',
-    name: 'Aditya',
-    age: 25,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-    isOnline: true,
-    isVerified: false,
-    eventName: 'Going to Ranchi Garba Night ...',
-    lastMessage: "Yes, I'll be there!",
-    time: 'Yesterday',
-    unreadCount: 0,
-    type: 'match',
-  },
-  {
-    id: 'conv-karan',
-    partnerId: 'user-karan',
-    name: 'Karan',
-    age: 26,
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80',
-    isOnline: false,
-    isVerified: true,
-    eventName: 'Going to Navratri Fusion Beats',
-    lastMessage: 'Okay, sounds good 👍',
-    time: '18 Oct',
-    unreadCount: 0,
-    type: 'match',
-  },
-  {
-    id: 'conv-priya',
-    partnerId: 'user-priya',
-    name: 'Priya',
-    age: 23,
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80',
-    isOnline: false,
-    isVerified: true,
-    eventName: 'Going to Ranchi Garba Night 2026',
-    lastMessage: 'Are you attending the 19 Oct event?',
-    time: '17 Oct',
-    unreadCount: 0,
-    type: 'match',
-  },
-];
-
-const DEFAULT_MESSAGES_MAP: Record<string, ChatMessageItem[]> = {
-  'conv-aditya': [
-    {
-      id: 'aditya-1',
-      sender: 'other',
-      senderName: 'Aditya',
-      senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-      text: "Yes, I'll be there! Let me know when you arrive.",
-      time: 'Yesterday',
-      status: 'READ',
-    },
-  ],
-  'conv-riya': [
-    {
-      id: 'riya-1',
-      sender: 'other',
-      senderName: 'Riya',
-      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      text: 'Hey! Are you attending the 18 Oct event?',
-      time: '10:20 AM',
-      status: 'READ',
-    },
-    {
-      id: 'riya-2',
-      sender: 'other',
-      senderName: 'Riya',
-      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      text: "Great! I'm also intermediate...",
-      time: '10:24 AM',
-      status: 'READ',
-    },
-  ],
-};
 
 function formatChatTime(dateInput?: string | Date | null): string {
   if (!dateInput) return '';
@@ -225,44 +92,41 @@ export const MessagesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryConvId = searchParams.get('id') || searchParams.get('convId');
 
-  // 1. Fetch live dynamic conversations from backend API
+  // 1. Fetch live dynamic conversations strictly from backend API
   const { data: apiConversations, isLoading: isConversationsLoading } = useConversations();
 
-  // Transform backend API conversations to list or fallback to default
+  // Transform backend API conversations into list (strictly dynamic, NO static fallback)
   const conversationList: DynamicConversationItem[] = useMemo(() => {
-    if (apiConversations && apiConversations.length > 0) {
-      const dynamicList = apiConversations.map((c) => {
-        const partnerName = c.partner?.name || 'Garba Partner';
-        const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-          c.partner?.id || c.conversationId
-        )}`;
-
-        return {
-          id: c.conversationId,
-          partnerId: c.partner?.id,
-          name: partnerName,
-          age: c.partner?.age || undefined,
-          avatar: c.partner?.avatar || defaultAvatar,
-          isOnline: true,
-          isVerified: true,
-          city: c.partner?.city || undefined,
-          state: c.partner?.state || undefined,
-          eventName: c.partner?.city ? `Going to ${c.partner.city} Garba Night ...` : 'Going to Ranchi Garba Night ...',
-          lastMessage: c.lastMessageText || 'No messages yet',
-          lastMessageAt: c.lastMessageAt,
-          time: formatChatTime(c.lastMessageAt),
-          unreadCount: c.unreadCount || 0,
-          type: 'match' as const,
-        };
-      });
-
-      // Merge remaining default conversations for full UI representation
-      const existingIds = new Set(dynamicList.map((d) => d.id));
-      const remainingDefaults = DEFAULT_CONVERSATIONS.filter((d) => !existingIds.has(d.id));
-      return [...dynamicList, ...remainingDefaults];
+    if (!apiConversations || apiConversations.length === 0) {
+      return [];
     }
 
-    return DEFAULT_CONVERSATIONS;
+    return apiConversations.map((c) => {
+      const partnerName = c.partner?.name || 'Garba Partner';
+      const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+        c.partner?.id || c.conversationId
+      )}`;
+
+      return {
+        id: c.conversationId,
+        partnerId: c.partner?.id,
+        name: partnerName,
+        age: c.partner?.age || undefined,
+        avatar: c.partner?.avatar || defaultAvatar,
+        isOnline: true,
+        isVerified: true,
+        city: c.partner?.city || undefined,
+        state: c.partner?.state || undefined,
+        eventName: c.partner?.city
+          ? `Going to ${c.partner.city} Garba Night ...`
+          : 'Going to Ranchi Garba Night ...',
+        lastMessage: c.lastMessageText || 'Tap to chat',
+        lastMessageAt: c.lastMessageAt,
+        time: formatChatTime(c.lastMessageAt),
+        unreadCount: c.unreadCount || 0,
+        type: 'match' as const,
+      };
+    });
   }, [apiConversations]);
 
   const [selectedConvId, setSelectedConvId] = useState<string>(() => {
@@ -270,7 +134,7 @@ export const MessagesPage: React.FC = () => {
     return '';
   });
 
-  // Sync selected conversation with URL parameter or default to first conversation on desktop
+  // Sync selected conversation with URL parameter or select first on desktop when loaded
   useEffect(() => {
     if (queryConvId && selectedConvId !== queryConvId) {
       setSelectedConvId(queryConvId);
@@ -349,7 +213,7 @@ export const MessagesPage: React.FC = () => {
     };
   }, [activeConversation, users]);
 
-  // Merge live socket messages for rendering with default mock fallback
+  // Strictly dynamic live messages from API & WebSocket
   const displayMessages: ChatMessageItem[] = useMemo(() => {
     if (liveMessages && liveMessages.length > 0) {
       return liveMessages.map((m) => ({
@@ -365,12 +229,8 @@ export const MessagesPage: React.FC = () => {
       }));
     }
 
-    if (selectedConvId && DEFAULT_MESSAGES_MAP[selectedConvId]) {
-      return DEFAULT_MESSAGES_MAP[selectedConvId];
-    }
-
     return [];
-  }, [liveMessages, selectedConvId, currentUser?.id]);
+  }, [liveMessages, currentUser?.id]);
 
   const scrollToBottom = (smooth = true) => {
     if (messagesContainerRef.current) {
@@ -381,7 +241,7 @@ export const MessagesPage: React.FC = () => {
     }
   };
 
-  // Only scroll inner container when new messages arrive (never triggers window scroll)
+  // Only scroll inner container when new messages arrive
   useEffect(() => {
     if (displayMessages.length > prevMessagesLengthRef.current) {
       scrollToBottom(true);
@@ -435,13 +295,13 @@ export const MessagesPage: React.FC = () => {
     <div className="w-full bg-[#FAF7FD] min-h-[100dvh] md:min-h-[calc(100vh-80px)] flex flex-col justify-stretch">
       <div className="max-w-[1400px] w-full mx-auto md:px-4 lg:px-6 md:py-4 h-[100dvh] md:h-[calc(100vh-85px)]">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 h-full items-stretch">
-          {/* ================= LEFT PANEL: CONVERSATIONS LIST (Image 1) ================= */}
+          {/* ================= LEFT PANEL: CONVERSATIONS LIST (Image 1 style) ================= */}
           <div
             className={`md:col-span-4 lg:col-span-4 bg-white md:rounded-3xl md:border md:border-slate-200/90 md:shadow-xs flex flex-col overflow-hidden h-full ${
               selectedConvId ? 'hidden md:flex' : 'flex'
             }`}
           >
-            {/* Header: ArrowLeft + Messages (10) */}
+            {/* Header: ArrowLeft + Messages ({count}) */}
             <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 space-y-3.5">
               <div className="flex items-center gap-3">
                 <button
@@ -454,7 +314,7 @@ export const MessagesPage: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading flex items-center gap-2">
                   <span>Messages</span>
                   <span className="text-slate-500 font-normal text-lg">
-                    ({conversationList.length > 0 ? conversationList.length : 10})
+                    ({filteredConversations.length})
                   </span>
                 </h1>
               </div>
@@ -471,7 +331,7 @@ export const MessagesPage: React.FC = () => {
                 />
               </div>
 
-              {/* Filter Tabs matching Image 1 */}
+              {/* Filter Tabs */}
               <div className="flex items-center gap-2 pt-0.5">
                 <button
                   onClick={() => setActiveTab('all')}
@@ -487,7 +347,7 @@ export const MessagesPage: React.FC = () => {
                       activeTab === 'all' ? 'bg-[#E60067]' : 'bg-slate-400'
                     }`}
                   >
-                    {conversationList.length > 0 ? conversationList.length : 8}
+                    {filteredConversations.length}
                   </span>
                 </button>
 
@@ -515,12 +375,36 @@ export const MessagesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Conversations List matching Image 1 */}
+            {/* Dynamic Conversations List */}
             <div className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-1 divide-y divide-transparent">
-              {isConversationsLoading && conversationList.length === 0 ? (
+              {isConversationsLoading ? (
                 <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
                   <Loader2 className="w-6 h-6 animate-spin text-[#E60067]" />
                   <p className="text-xs text-slate-400 font-medium">Loading conversations…</p>
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-6 text-center h-full space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-50 text-[#E60067] flex items-center justify-center">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-800">
+                      {searchQuery.trim() ? 'No matches found' : 'No conversations yet'}
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
+                      {searchQuery.trim()
+                        ? 'Try searching with a different name or message'
+                        : 'Connect with dancers and find your Garba partner to start chatting!'}
+                    </p>
+                  </div>
+                  {!searchQuery.trim() && (
+                    <Link
+                      to="/find-partner"
+                      className="px-4 py-2 bg-[#E60067] hover:bg-pink-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                    >
+                      Find Partners
+                    </Link>
+                  )}
                 </div>
               ) : (
                 filteredConversations.map((conv) => {
@@ -590,7 +474,7 @@ export const MessagesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ================= RIGHT PANEL: ACTIVE CHAT SCREEN (Image 2) ================= */}
+          {/* ================= RIGHT PANEL: ACTIVE CHAT SCREEN (Image 2 style) ================= */}
           <div
             className={`md:col-span-8 lg:col-span-8 bg-white md:rounded-3xl md:border md:border-slate-200/90 md:shadow-xs flex flex-col overflow-hidden h-full ${
               !selectedConvId ? 'hidden md:flex' : 'flex'
@@ -598,7 +482,7 @@ export const MessagesPage: React.FC = () => {
           >
             {activeConversation ? (
               <>
-                {/* Chat Top Header matching Image 2 */}
+                {/* Chat Top Header */}
                 <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10 gap-2">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Back Button */}
@@ -702,7 +586,7 @@ export const MessagesPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Chat Messages Body matching Image 2 */}
+                {/* Chat Messages Body */}
                 <div
                   ref={messagesContainerRef}
                   className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#FAF7FD]"
@@ -714,74 +598,97 @@ export const MessagesPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {displayMessages.map((msg) => {
-                    const isMe = msg.sender === 'me';
-                    const isSeen = msg.status === 'READ' || !!msg.seenAt;
-
-                    return (
-                      <div key={msg.id} className="space-y-1">
-                        <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          {/* Left Sender Avatar (Image 2 style) */}
-                          {!isMe && (
-                            <img
-                              src={msg.senderAvatar || activeConversation.avatar}
-                              alt="sender"
-                              className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 flex-shrink-0 mb-5 shadow-2xs"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                                  msg.senderName || activeConversation.name
-                                )}`;
-                              }}
-                            />
-                          )}
-
-                          <div className="space-y-1 max-w-[82%] sm:max-w-md">
-                            {/* Message Bubble (Image 2 style) */}
-                            <div
-                              className={`p-3.5 sm:p-4 rounded-2xl text-sm leading-relaxed shadow-2xs ${
-                                isMe
-                                  ? 'bg-[#FCE7F3] text-slate-900 rounded-tr-xs font-normal border border-pink-200/60'
-                                  : 'bg-white text-slate-800 rounded-tl-xs font-normal border border-slate-100'
-                              }`}
-                            >
-                              <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                            </div>
-
-                            {/* Timestamp below bubble */}
-                            <div
-                              className={`flex items-center gap-1 text-[11px] text-slate-400 ${
-                                isMe ? 'justify-end mr-1' : 'justify-start ml-1'
-                              }`}
-                            >
-                              <span>{msg.time}</span>
-                              {isMe &&
-                                (isSeen ? (
-                                  <CheckCheck className="w-3.5 h-3.5 text-sky-500" />
-                                ) : msg.status === 'DELIVERED' ? (
-                                  <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
-                                ) : (
-                                  <Check className="w-3.5 h-3.5 text-slate-400" />
-                                ))}
-                            </div>
-                          </div>
-
-                          {/* Right Sender (Me) Avatar */}
-                          {isMe && (
-                            <img
-                              src={
-                                currentUser?.avatar ||
-                                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                                  currentUser?.name || 'Me'
-                                )}`
-                              }
-                              alt="me"
-                              className="w-8 h-8 rounded-full object-cover ring-1 ring-pink-300 flex-shrink-0 mb-5 shadow-2xs"
-                            />
-                          )}
-                        </div>
+                  {displayMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[calc(100%-80px)] py-8 text-center space-y-3">
+                      <img
+                        src={activeConversation.avatar}
+                        alt={activeConversation.name}
+                        className="w-16 h-16 rounded-full object-cover ring-4 ring-pink-100 shadow-sm"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                            activeConversation.name
+                          )}`;
+                        }}
+                      />
+                      <div className="space-y-1 max-w-xs">
+                        <h4 className="text-sm font-bold text-slate-800">
+                          Say hello to {activeConversation.name}! 👋
+                        </h4>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Send a message to coordinate dance practices, passes, and events.
+                        </p>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    displayMessages.map((msg) => {
+                      const isMe = msg.sender === 'me';
+                      const isSeen = msg.status === 'READ' || !!msg.seenAt;
+
+                      return (
+                        <div key={msg.id} className="space-y-1">
+                          <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            {/* Left Sender Avatar */}
+                            {!isMe && (
+                              <img
+                                src={msg.senderAvatar || activeConversation.avatar}
+                                alt="sender"
+                                className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 flex-shrink-0 mb-5 shadow-2xs"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                                    msg.senderName || activeConversation.name
+                                  )}`;
+                                }}
+                              />
+                            )}
+
+                            <div className="space-y-1 max-w-[82%] sm:max-w-md">
+                              {/* Message Bubble */}
+                              <div
+                                className={`p-3.5 sm:p-4 rounded-2xl text-sm leading-relaxed shadow-2xs ${
+                                  isMe
+                                    ? 'bg-[#FCE7F3] text-slate-900 rounded-tr-xs font-normal border border-pink-200/60'
+                                    : 'bg-white text-slate-800 rounded-tl-xs font-normal border border-slate-100'
+                                }`}
+                              >
+                                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                              </div>
+
+                              {/* Timestamp below bubble */}
+                              <div
+                                className={`flex items-center gap-1 text-[11px] text-slate-400 ${
+                                  isMe ? 'justify-end mr-1' : 'justify-start ml-1'
+                                }`}
+                              >
+                                <span>{msg.time}</span>
+                                {isMe &&
+                                  (isSeen ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-sky-500" />
+                                  ) : msg.status === 'DELIVERED' ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5 text-slate-400" />
+                                  ))}
+                              </div>
+                            </div>
+
+                            {/* Right Sender (Me) Avatar */}
+                            {isMe && (
+                              <img
+                                src={
+                                  currentUser?.avatar ||
+                                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                                    currentUser?.name || 'Me'
+                                  )}`
+                                }
+                                alt="me"
+                                className="w-8 h-8 rounded-full object-cover ring-1 ring-pink-300 flex-shrink-0 mb-5 shadow-2xs"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
 
                   {/* Real-Time Typing Indicator */}
                   {isTyping && (
@@ -796,7 +703,7 @@ export const MessagesPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Bottom Message Composer matching Image 2 */}
+                {/* Bottom Message Composer */}
                 <div className="p-3 sm:p-4 bg-white border-t border-slate-100">
                   <form onSubmit={handleSendMessage} className="flex items-center gap-2.5 sm:gap-3">
                     {/* Pill Input Container */}
@@ -839,7 +746,7 @@ export const MessagesPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Circular Pink Send Button (Image 2 style) */}
+                    {/* Circular Pink Send Button */}
                     <button
                       type="submit"
                       disabled={!inputText.trim()}
@@ -863,6 +770,12 @@ export const MessagesPage: React.FC = () => {
                     Select a conversation to start chatting with your Garba partners.
                   </p>
                 </div>
+                <Link
+                  to="/find-partner"
+                  className="px-5 py-2.5 rounded-2xl bg-[#E60067] hover:bg-pink-700 text-white text-sm font-bold shadow-md shadow-pink-500/20 transition-all active:scale-95"
+                >
+                  Find Partners
+                </Link>
               </div>
             )}
           </div>
