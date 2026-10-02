@@ -14,15 +14,18 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF7FD] w-full max-w-full overflow-x-hidden">
-      {!isAuthPage && <Navbar />}
-      <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isAuthPage ? 'pb-0' : isMessagesPage ? 'pb-20 lg:pb-0' : 'pb-24 lg:pb-0'}`}>
+      {!isAuthPage && (
+        <div className={isMessagesPage ? 'hidden md:block' : ''}>
+          <Navbar />
+        </div>
+      )}
+      <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isAuthPage ? 'pb-0' : isMessagesPage ? 'pb-0' : 'pb-24 lg:pb-0'}`}>
         <Outlet />
       </main>
       {!hideFooter && <Footer />}
-      {!isAuthPage && <MobileBottomNav />}
+      {!isAuthPage && !isMessagesPage && <MobileBottomNav />}
       <ToastContainer />
       <MatchCelebrationModal />
     </div>
   );
 };
-
