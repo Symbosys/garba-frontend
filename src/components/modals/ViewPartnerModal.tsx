@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   MapPin,
@@ -12,9 +12,11 @@ import {
   User,
   Music,
   Calendar,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { PublicUser } from '../../hooks/users/useUsers';
+import { useStartConversation } from '../../hooks/chat/useChat';
 
 export interface ViewPartnerModalProps {
   partner: {
@@ -46,6 +48,8 @@ export const ViewPartnerModal: React.FC<ViewPartnerModalProps> = ({
   isFavorite = false,
   onToggleFavorite,
 }) => {
+  const navigate = useNavigate();
+  const startConversation = useStartConversation();
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   if (!isOpen || !partner) return null;
@@ -196,14 +200,36 @@ export const ViewPartnerModal: React.FC<ViewPartnerModalProps> = ({
             Close
           </button>
 
-          <Link
-            to="/messages"
-            onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs font-bold shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 text-center"
+          <button
+            onClick={async () => {
+              if (partner.id) {
+                try {
+                  const res = await startConversation.mutateAsync(partner.id);
+                  onClose();
+                  if (res?.conversationId) {
+                    navigate(`/messages?id=${res.conversationId}`);
+                  } else {
+                    navigate('/messages');
+                  }
+                } catch {
+                  onClose();
+                  navigate('/messages');
+                }
+              } else {
+                onClose();
+                navigate('/messages');
+              }
+            }}
+            disabled={startConversation.isPending}
+            className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs font-bold shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 text-center disabled:opacity-50"
           >
-            <MessageCircle className="w-4 h-4" />
-            <span>Chat / Send Message</span>
-          </Link>
+            {startConversation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <MessageCircle className="w-4 h-4" />
+            )}
+            <span>{startConversation.isPending ? 'Opening Chat…' : 'Chat / Send Message'}</span>
+          </button>
         </div>
       </div>
     </div>

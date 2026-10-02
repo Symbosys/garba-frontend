@@ -111,12 +111,17 @@ export const Navbar: React.FC = () => {
     return popularMap[selectedStateCode] || [];
   }, [selectedStateCode]);
 
-  // Handle scroll shadow
+  // Handle scroll shadow with hysteresis to prevent boundary flicker
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const currentScrollY = window.scrollY;
+      setIsScrolled((prev) => {
+        if (!prev && currentScrollY > 30) return true;
+        if (prev && currentScrollY < 10) return false;
+        return prev;
+      });
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -162,15 +167,15 @@ export const Navbar: React.FC = () => {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full transition-all duration-300 ${
+      className={`sticky top-0 z-40 w-full transition-colors duration-200 h-16 sm:h-[70px] flex items-center border-b ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm shadow-purple-900/5 border-b border-purple-100/80 py-2.5'
-          : 'bg-white/80 backdrop-blur-sm border-b border-purple-50 py-3.5'
+          ? 'bg-white/95 backdrop-blur-md shadow-xs border-slate-200/90'
+          : 'bg-white/80 backdrop-blur-sm border-slate-100'
       }`}
     >
-      <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
         {/* Left: Logo */}
-        <GarbaLogo showTagline={!isScrolled} hideTextOnMobile={true} />
+        <GarbaLogo showTagline={true} hideTextOnMobile={true} />
 
         {/* Center: Search Bar (when logged in) or Desktop Nav Links (when public) */}
         {isLoggedIn ? (

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useUser } from '../../hooks/users/useUsers';
+import { useStartConversation } from '../../hooks/chat/useChat';
 import {
   ArrowLeft,
   MapPin,
@@ -24,6 +25,7 @@ export const PartnerDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { favorites, toggleFavorite, showToast } = useApp();
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const startConvMutation = useStartConversation();
 
   // Fetch partner details directly from database API
   const { data: user, isLoading, error } = useUser(partnerId);
@@ -207,13 +209,25 @@ export const PartnerDetailPage: React.FC = () => {
 
             {/* Direct Message Action Button */}
             <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-              <Link
-                to="/messages"
-                className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs sm:text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 text-center"
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await startConvMutation.mutateAsync(user.id);
+                    navigate(`/messages?id=${res.conversationId}`);
+                  } catch {
+                    navigate('/messages');
+                  }
+                }}
+                disabled={startConvMutation.isPending}
+                className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs sm:text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 text-center disabled:opacity-60 cursor-pointer"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Send Message</span>
-              </Link>
+                {startConvMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="w-4 h-4" />
+                )}
+                <span>{startConvMutation.isPending ? 'Opening Chat…' : 'Send Message'}</span>
+              </button>
             </div>
           </div>
         </div>

@@ -26,6 +26,7 @@ import { useEvents, EventItem } from '../../hooks/events/useEvents';
 import { useInfiniteUsers, PublicUser } from '../../hooks/users/useUsers';
 import { RequestPartnerModal } from '../../components/modals/RequestPartnerModal';
 import { User, FestivalEvent } from '../../types';
+import { useStartConversation, useConversations } from '../../hooks/chat/useChat';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -151,6 +152,28 @@ export const DashboardPage: React.FC = () => {
     navigate(`/partners/${partnerItem.id}`);
   };
 
+  // Real-time Chat Initiation
+  const startConversation = useStartConversation();
+  const { data: conversations } = useConversations();
+  const [chatLoadingPartnerId, setChatLoadingPartnerId] = useState<string | null>(null);
+
+  const handleStartChatWithPartner = async (partnerId: string) => {
+    try {
+      setChatLoadingPartnerId(partnerId);
+      const res = await startConversation.mutateAsync(partnerId);
+      if (res?.conversationId) {
+        navigate(`/messages?id=${res.conversationId}`);
+      } else {
+        navigate('/messages');
+      }
+    } catch (err) {
+      console.error('Failed to initiate conversation:', err);
+      navigate('/messages');
+    } finally {
+      setChatLoadingPartnerId(null);
+    }
+  };
+
   // Selected candidate for request modal
   const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -158,7 +181,7 @@ export const DashboardPage: React.FC = () => {
   // Dynamic KPI counts
   const pendingRequestsCount = 0;
   const matchesCount = 0;
-  const messagesCount = 0;
+  const messagesCount = conversations?.reduce((acc, c) => acc + (c.unreadCount || 0), 0) || 0;
   const upcomingEventsCount = displayEvents.length;
 
   const handleOpenRequest = (partnerItem: typeof displayPartners[0]) => {
@@ -645,13 +668,23 @@ export const DashboardPage: React.FC = () => {
                         <span>View Partner</span>
                       </button>
 
-                      <Link
-                        to="/messages"
-                        className="w-10 h-10 rounded-xl bg-white hover:bg-pink-50 text-[#FF1E6A] border border-pink-200 flex items-center justify-center shadow-sm transition-colors flex-shrink-0"
-                        title="Send Message"
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleStartChatWithPartner(partner.id);
+                        }}
+                        disabled={chatLoadingPartnerId === partner.id}
+                        className="w-10 h-10 rounded-xl bg-white hover:bg-pink-50 text-[#FF1E6A] border border-pink-200 flex items-center justify-center shadow-sm transition-all active:scale-95 flex-shrink-0 cursor-pointer disabled:opacity-50"
+                        title={`Chat with ${partner.name}`}
                       >
-                        <MessageCircle className="w-4 h-4" />
-                      </Link>
+                        {chatLoadingPartnerId === partner.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#FF1E6A]" />
+                        ) : (
+                          <MessageCircle className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
