@@ -571,39 +571,20 @@ export const Navbar: React.FC = () => {
 
                     <div className="space-y-0.5 text-xs font-semibold text-slate-700">
                       <Link
-                        to="/dashboard"
+                        to="/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-purple-50"
                       >
                         <UserIcon className="w-4 h-4 text-pink-600" />
-                        My Dashboard
-                      </Link>
-                      <Link
-                        to="/profile"
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-purple-50"
-                      >
-                        <CheckCircle className="w-4 h-4 text-emerald-600" />
                         My Profile
                       </Link>
                       <Link
-                        to="/matches"
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-purple-50"
-                      >
-                        <Heart className="w-4 h-4 text-rose-500" />
-                        My Matches
-                      </Link>
-                      <Link
                         to="/messages"
+                        onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-purple-50"
                       >
                         <MessageCircle className="w-4 h-4 text-violet-600" />
                         Messages
-                      </Link>
-                      <Link
-                        to="/events/my-events"
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-purple-50"
-                      >
-                        <Calendar className="w-4 h-4 text-amber-600" />
-                        My Events
                       </Link>
                     </div>
 
