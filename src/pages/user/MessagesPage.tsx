@@ -167,6 +167,50 @@ export const MessagesPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, []);
 
+  // Track 2-minute (120s) active duration for green dot upon typing or message activity
+  const [partnerActiveUntil, setPartnerActiveUntil] = useState<Record<string, number>>({});
+  const [, setTimerTick] = useState(0);
+
+  useEffect(() => {
+    if (isTyping && selectedConvId) {
+      setPartnerActiveUntil((prev) => ({
+        ...prev,
+        [selectedConvId]: Date.now() + 120 * 1000,
+      }));
+    }
+  }, [isTyping, selectedConvId]);
+
+  useEffect(() => {
+    if (!liveMessages || liveMessages.length === 0 || !selectedConvId) return;
+    const lastMsg = liveMessages[liveMessages.length - 1];
+    if (lastMsg && lastMsg.senderId !== currentUser?.id) {
+      setPartnerActiveUntil((prev) => ({
+        ...prev,
+        [selectedConvId]: Date.now() + 120 * 1000,
+      }));
+    }
+  }, [liveMessages, selectedConvId, currentUser?.id]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimerTick((t) => (t + 1) % 10000);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isSelectedPartnerActive = useMemo(() => {
+    if (!selectedConvId) return false;
+    if (isTyping) return true;
+    const expiresAt = partnerActiveUntil[selectedConvId];
+    return expiresAt ? Date.now() < expiresAt : false;
+  }, [selectedConvId, isTyping, partnerActiveUntil]);
+
+  const isConvActive = (convId: string) => {
+    if (convId === selectedConvId && isTyping) return true;
+    const expiresAt = partnerActiveUntil[convId];
+    return expiresAt ? Date.now() < expiresAt : false;
+  };
+
   // Resolve currently active conversation object
   const activeConversation: DynamicConversationItem | null = useMemo(() => {
     if (!selectedConvId) {
@@ -292,8 +336,8 @@ export const MessagesPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full bg-[#FAF7FD] min-h-[100dvh] md:min-h-[calc(100vh-80px)] flex flex-col justify-stretch">
-      <div className="max-w-[1400px] w-full mx-auto md:px-4 lg:px-6 md:py-4 h-[100dvh] md:h-[calc(100vh-85px)]">
+    <div className="w-full bg-[#FAF7FD] h-[100dvh] md:h-[calc(100vh-80px)] flex flex-col justify-stretch overflow-hidden">
+      <div className="max-w-[1400px] w-full mx-auto md:px-4 lg:px-6 md:py-4 h-full">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 h-full items-stretch">
           {/* ================= LEFT PANEL: CONVERSATIONS LIST (Image 1 style) ================= */}
           <div
@@ -437,7 +481,7 @@ export const MessagesPage: React.FC = () => {
                             }}
                           />
                         )}
-                        {(conv.id === selectedConvId ? isTyping : conv.isOnline) && (
+                        {isConvActive(conv.id) && (
                           <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                         )}
                       </div>
@@ -476,14 +520,16 @@ export const MessagesPage: React.FC = () => {
 
           {/* ================= RIGHT PANEL: ACTIVE CHAT SCREEN (Image 2 style) ================= */}
           <div
-            className={`md:col-span-8 lg:col-span-8 bg-white md:rounded-3xl md:border md:border-slate-200/90 md:shadow-xs flex flex-col overflow-hidden h-full ${
-              !selectedConvId ? 'hidden md:flex' : 'flex'
+            className={`md:col-span-8 lg:col-span-8 bg-white md:rounded-3xl md:border md:border-slate-200/90 md:shadow-xs flex flex-col overflow-hidden ${
+              !selectedConvId
+                ? 'hidden md:flex md:h-full'
+                : 'fixed inset-0 md:relative md:inset-auto z-40 md:z-auto flex h-[100dvh] md:h-full'
             }`}
           >
             {activeConversation ? (
               <>
                 {/* Chat Top Header */}
-                <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10 gap-2">
+                <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between bg-white z-20 gap-2 flex-shrink-0 sticky top-0 shadow-2xs">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Back Button */}
                     <button
@@ -509,7 +555,7 @@ export const MessagesPage: React.FC = () => {
                           )}`;
                         }}
                       />
-                      {isTyping && (
+                      {isSelectedPartnerActive && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
                       )}
                     </div>
@@ -561,7 +607,7 @@ export const MessagesPage: React.FC = () => {
                 {/* Chat Messages Body */}
                 <div
                   ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#FAF7FD]"
+                  className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 space-y-4 bg-[#FAF7FD] overscroll-contain"
                 >
                   {/* Today Date Badge */}
                   <div className="flex justify-center mb-2">
@@ -676,10 +722,10 @@ export const MessagesPage: React.FC = () => {
                 </div>
 
                 {/* Bottom Message Composer */}
-                <div className="p-3 sm:p-4 bg-white border-t border-slate-100">
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2.5 sm:gap-3">
+                <div className="p-2.5 sm:p-4 bg-white border-t border-slate-100 flex-shrink-0 sticky bottom-0 z-20">
+                  <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3 w-full">
                     {/* Pill Input Container */}
-                    <div className="flex-1 flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full border border-slate-200/90 bg-white focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500 transition-all shadow-2xs">
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border border-pink-500 bg-white focus-within:ring-2 focus-within:ring-pink-400/20 transition-all shadow-2xs">
                       {/* Emoji Icon */}
                       <button
                         type="button"
@@ -696,7 +742,7 @@ export const MessagesPage: React.FC = () => {
                         value={inputText}
                         onChange={handleInputChange}
                         placeholder="Type a message..."
-                        className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none min-w-0"
+                        className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
                       />
 
                       {/* Image Upload Icon */}
@@ -722,10 +768,10 @@ export const MessagesPage: React.FC = () => {
                     <button
                       type="submit"
                       disabled={!inputText.trim()}
-                      className="w-11 h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 transition-all active:scale-95 disabled:opacity-40 flex-shrink-0 cursor-pointer"
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 transition-all active:scale-95 disabled:opacity-40 flex-shrink-0 cursor-pointer"
                       title="Send"
                     >
-                      <Send className="w-5 h-5 text-white" />
+                      <Send className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
                     </button>
                   </form>
                 </div>
