@@ -1,442 +1,435 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { State, City } from 'country-state-city';
 import { useApp } from '../../context/AppContext';
-import { DanceLevel, LookingFor, GenderPreference } from '../../types';
-import { Sparkles, ArrowRight, ArrowLeft, Check, User, Music, Users, Clock, Camera } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { compressImage } from '../../utils/image-compression.util';
+import {
+  Sparkles,
+  ArrowLeft,
+  Check,
+  User as UserIcon,
+  MapPin,
+  Building,
+  Mail,
+  Phone,
+  Save,
+  Loader2,
+  Camera,
+  Upload,
+  Image as ImageIcon
+} from 'lucide-react';
 
 export const EditProfilePage: React.FC = () => {
-  const { currentUser, updateUserProfile, cities } = useApp();
+  const { currentUser, updateUserProfile, showToast } = useApp();
+  const { user: authUser } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const activeUser = authUser || currentUser;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State
-  const [name, setName] = useState(currentUser?.name || 'Aarohi Verma');
-  const [dob, setDob] = useState(currentUser?.dateOfBirth || '2003-05-14');
-  const [gender, setGender] = useState(currentUser?.gender || 'Female');
-  const [city, setCity] = useState(currentUser?.city || 'Ranchi');
-  const [area, setArea] = useState(currentUser?.area || 'Morabadi / Lalpur');
+  // Profile Picture State
+  const [avatar, setAvatar] = useState<string>(
+    currentUser?.avatar || authUser?.photos?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+  );
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
 
-  const [garbaLevel, setGarbaLevel] = useState<DanceLevel>(currentUser?.garbaLevel || 'Intermediate');
-  const [dandiyaLevel, setDandiyaLevel] = useState<DanceLevel>(currentUser?.dandiyaLevel || 'Intermediate');
-  const [danceStyle, setDanceStyle] = useState(currentUser?.danceStyle || 'Traditional');
+  // Real Database Fields State
+  const [name, setName] = useState(activeUser?.name || '');
+  const [age, setAge] = useState<number | string>(activeUser?.age || 21);
+  const [gender, setGender] = useState<string>(
+    activeUser?.gender === 'Female' ? 'FEMALE' : activeUser?.gender === 'Male' ? 'MALE' : activeUser?.gender || 'FEMALE'
+  );
+  const [addressLine, setAddressLine] = useState(
+    activeUser?.addressLine || (currentUser as any)?.area || ''
+  );
+  const [selectedStateName, setSelectedStateName] = useState(activeUser?.state || 'Jharkhand');
+  const [selectedCityName, setSelectedCityName] = useState(activeUser?.city || 'Ranchi');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [preferredGender, setPreferredGender] = useState<GenderPreference>(currentUser?.preferredGender || 'Any');
-  const [ageMin, setAgeMin] = useState(currentUser?.preferredAgeMin || 20);
-  const [ageMax, setAgeMax] = useState(currentUser?.preferredAgeMax || 30);
-  const [lookingFor, setLookingFor] = useState<LookingFor[]>(currentUser?.lookingFor || ['Partner', 'Group']);
+  // Indian States & Cities List from country-state-city
+  const indianStates = useMemo(() => {
+    return State.getStatesOfCountry('IN');
+  }, []);
 
-  const [availabilityDate, setAvailabilityDate] = useState('2026-10-18');
-  const [startTime, setStartTime] = useState(currentUser?.availability?.startTime || '19:00');
-  const [endTime, setEndTime] = useState(currentUser?.availability?.endTime || '23:30');
+  const selectedStateObj = useMemo(() => {
+    return indianStates.find(
+      (s) => s.name.toLowerCase() === selectedStateName.toLowerCase() || s.isoCode === selectedStateName
+    );
+  }, [indianStates, selectedStateName]);
 
-  const [bio, setBio] = useState(currentUser?.bio || 'Passionate about traditional 3-Taali & Dodhiya!');
-  const [avatar, setAvatar] = useState(currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80');
+  const availableCities = useMemo(() => {
+    if (!selectedStateObj) return [];
+    return City.getCitiesOfState('IN', selectedStateObj.isoCode);
+  }, [selectedStateObj]);
 
-  const toggleLookingFor = (item: LookingFor) => {
-    if (lookingFor.includes(item)) {
-      if (lookingFor.length > 1) {
-        setLookingFor(lookingFor.filter((i) => i !== item));
+  const handleStateChange = (stateName: string) => {
+    setSelectedStateName(stateName);
+    const foundState = indianStates.find((s) => s.name === stateName);
+    if (foundState) {
+      const citiesInState = City.getCitiesOfState('IN', foundState.isoCode);
+      if (citiesInState.length > 0) {
+        setSelectedCityName(citiesInState[0].name);
+      } else {
+        setSelectedCityName('');
       }
-    } else {
-      setLookingFor([...lookingFor, item]);
     }
   };
 
-  const handleNext = () => {
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      // Save full profile
+  // Handle Photo File Upload & Compression
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('Invalid Format', 'Please upload a JPG, PNG, or WebP image.', 'warning');
+      return;
+    }
+
+    try {
+      setIsCompressingPhoto(true);
+      const compressed = await compressImage(file, 100 * 1024);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setAvatar(event.target.result as string);
+          showToast('Photo selected!', 'Click Save Changes to apply.', 'info');
+        }
+        setIsCompressingPhoto(false);
+      };
+      reader.onerror = () => {
+        setIsCompressingPhoto(false);
+        showToast('Photo Error', 'Failed to read photo.', 'error');
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error('Photo compression error:', err);
+      setIsCompressingPhoto(false);
+      showToast('Photo Error', 'Failed to process image.', 'error');
+    }
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast('Name is required', 'Please enter your full name', 'warning');
+      return;
+    }
+
+    const parsedAge = typeof age === 'string' ? parseInt(age, 10) : age;
+    if (isNaN(parsedAge) || parsedAge < 14 || parsedAge > 100) {
+      showToast('Invalid Age', 'Age must be between 14 and 100', 'warning');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
       updateUserProfile({
-        name,
-        dateOfBirth: dob,
-        gender: gender as any,
-        city,
-        area,
-        garbaLevel,
-        dandiyaLevel,
-        danceStyle: danceStyle as any,
-        preferredGender,
-        preferredAgeMin: ageMin,
-        preferredAgeMax: ageMax,
-        lookingFor,
-        availability: {
-          dates: [availabilityDate],
-          startTime,
-          endTime
-        },
-        bio,
+        name: name.trim(),
+        age: parsedAge,
+        gender: gender === 'FEMALE' ? 'Female' : gender === 'MALE' ? 'Male' : (gender as any),
         avatar,
-        profileCompletion: 100
+        city: selectedCityName.trim() || selectedStateName,
+        area: addressLine.trim() || selectedStateName,
+        addressLine: addressLine.trim(),
+        state: selectedStateName,
       });
+
+      queryClient.setQueryData(['auth', 'me'], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          name: name.trim(),
+          age: parsedAge,
+          gender,
+          city: selectedCityName.trim() || selectedStateName,
+          state: selectedStateName,
+          addressLine: addressLine.trim(),
+          photos: avatar ? [{ id: 'custom-avatar', url: avatar, sortOrder: 0 }] : old.photos,
+        };
+      });
+
+      showToast('Profile Updated Successfully', 'Your photo and profile details have been saved.', 'success');
       navigate('/profile');
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      showToast('Update Failed', 'An error occurred while saving your profile.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const sampleAvatars = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80'
-  ];
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Wizard Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold uppercase tracking-wider">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-in fade-in duration-300">
+      {/* Header & Back Button */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate('/profile')}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Profile</span>
+        </button>
+
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-900 text-xs font-bold">
           <Sparkles className="w-3.5 h-3.5 text-pink-600" />
-          Multi-Step Profile Wizard
+          <span>Database Profile Editor</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-purple-950 font-heading">
-          Edit Festival Profile
-        </h1>
-        <p className="text-xs text-slate-500">
-          Step {currentStep} of 5 · Keep your dance style and event preferences up to date.
-        </p>
       </div>
 
-      {/* Progress Indicator Bar */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-          <span>Step {currentStep} of 5</span>
-          <span>{currentStep * 20}%</span>
+      {/* Main Edit Form Card */}
+      <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100 shadow-xl space-y-7">
+        <div className="border-b border-slate-100 pb-4">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 font-heading">
+            Edit Account Information
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Update your profile picture and database information.
+          </p>
         </div>
-        <div className="w-full h-2 rounded-full bg-purple-100 overflow-hidden">
-          <div
-            className="h-full festive-gradient transition-all duration-300"
-            style={{ width: `${currentStep * 20}%` }}
+
+        {/* 1. PROFILE PICTURE UPLOAD SECTION */}
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-50/70 via-pink-50/50 to-purple-50/70 border border-purple-100 flex flex-col sm:flex-row items-center gap-5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handlePhotoSelect}
+            className="hidden"
           />
-        </div>
-      </div>
 
-      {/* Main Step Content Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100 shadow-xl space-y-6">
-        {/* STEP 1: Basic Information */}
-        {currentStep === 1 && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-purple-50">
-              <User className="w-5 h-5 text-purple-600" />
-              <h3 className="text-base font-bold text-slate-900 font-heading">
-                Step 1: Basic Information
-              </h3>
+          <div className="relative group">
+            <img
+              src={avatar}
+              alt="Profile avatar preview"
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-4 ring-pink-500 shadow-lg bg-slate-900"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isCompressingPhoto}
+              className="absolute inset-0 bg-black/40 hover:bg-black/60 rounded-3xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:opacity-50"
+              title="Click to change photo"
+            >
+              {isCompressingPhoto ? (
+                <Loader2 className="w-6 h-6 animate-spin text-pink-400" />
+              ) : (
+                <>
+                  <Camera className="w-6 h-6" />
+                  <span className="text-[10px] font-bold mt-1">Change</span>
+                </>
+              )}
+            </button>
+            <div className="absolute -bottom-1.5 -right-1.5 p-1.5 rounded-full bg-[#FF1E6A] text-white shadow-md">
+              <Camera className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2 text-center sm:text-left">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Profile Picture</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Upload a clear photo of yourself (JPG, PNG, or WebP).
+              </p>
             </div>
 
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isCompressingPhoto}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-pink-50 text-xs font-bold text-slate-800 border border-slate-200 shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {isCompressingPhoto ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF1E6A]" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5 text-[#FF1E6A]" />
+                )}
+                <span>{isCompressingPhoto ? 'Processing…' : 'Upload New Photo'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. EDITABLE DATABASE FIELDS */}
+        <div className="space-y-5">
+          {/* Full Name */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <UserIcon className="w-3.5 h-3.5 text-[#FF1E6A]" />
+              Full Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Aarohi Verma"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all"
+            />
+          </div>
+
+          {/* Age & Gender Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Age */}
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Your Name</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Age (Years) <span className="text-rose-500">*</span>
+              </label>
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-3 rounded-xl border border-purple-200 bg-white"
+                type="number"
+                min={14}
+                max={100}
+                required
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder="21"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Gender</label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value as any)}
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white font-semibold"
-                >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Non-Binary">Non-Binary</option>
-                </select>
-              </div>
+            {/* Gender */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Gender <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+              >
+                <option value="FEMALE">Female</option>
+                <option value="MALE">Male</option>
+                <option value="NON_BINARY">Non-Binary</option>
+                <option value="OTHER">Other</option>
+                <option value="PREFER_NOT_TO_SAY">Prefer Not to Say</option>
+              </select>
+            </div>
+          </div>
+
+          {/* State & City Dropdowns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* State */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-purple-600" />
+                State <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={selectedStateName}
+                onChange={(e) => handleStateChange(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+              >
+                {indianStates.map((s) => (
+                  <option key={s.isoCode} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">City</label>
+            {/* City */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                City <span className="text-rose-500">*</span>
+              </label>
+              {availableCities.length > 0 ? (
                 <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white font-semibold"
+                  value={selectedCityName}
+                  onChange={(e) => setSelectedCityName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
                 >
-                  {cities.map((c) => (
-                    <option key={c.id} value={c.name}>
+                  {availableCities.map((c) => (
+                    <option key={c.name} value={c.name}>
                       {c.name}
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Area / Neighborhood</label>
+              ) : (
                 <input
                   type="text"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder="e.g. Morabadi"
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white"
+                  required
+                  value={selectedCityName}
+                  onChange={(e) => setSelectedCityName(e.target.value)}
+                  placeholder="Enter your city"
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all"
                 />
-              </div>
+              )}
             </div>
           </div>
-        )}
 
-        {/* STEP 2: Dance Preferences */}
-        {currentStep === 2 && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-purple-50">
-              <Music className="w-5 h-5 text-pink-600" />
-              <h3 className="text-base font-bold text-slate-900 font-heading">
-                Step 2: Dance Preferences & Skill Levels
-              </h3>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Garba Skill Level</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Beginner', 'Intermediate', 'Expert'] as DanceLevel[]).map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setGarbaLevel(lvl)}
-                    className={`py-2.5 rounded-xl font-bold transition-colors ${
-                      garbaLevel === lvl ? 'bg-purple-900 text-white shadow-sm' : 'bg-purple-50 text-slate-700 hover:bg-purple-100'
-                    }`}
-                  >
-                    {lvl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Dandiya Raas Skill Level</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Beginner', 'Intermediate', 'Expert'] as DanceLevel[]).map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setDandiyaLevel(lvl)}
-                    className={`py-2.5 rounded-xl font-bold transition-colors ${
-                      dandiyaLevel === lvl ? 'bg-pink-600 text-white shadow-sm' : 'bg-pink-50 text-slate-700 hover:bg-pink-100'
-                    }`}
-                  >
-                    {lvl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Preferred Dance / Outfit Style</label>
-              <select
-                value={danceStyle}
-                onChange={(e) => setDanceStyle(e.target.value as any)}
-                className="w-full p-3 rounded-xl border border-purple-200 bg-white font-semibold"
-              >
-                <option value="Traditional">Traditional Gujarati / Kutchi</option>
-                <option value="Modern Bollywood">Modern Bollywood Beats</option>
-                <option value="Fusion">Fusion</option>
-                <option value="All Styles">All Styles</option>
-              </select>
-            </div>
+          {/* Address Line */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5 text-purple-600" />
+              Address Line / Area
+            </label>
+            <input
+              type="text"
+              value={addressLine}
+              onChange={(e) => setAddressLine(e.target.value)}
+              placeholder="e.g. Morabadi, Near Tagore Hill"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-[#FF1E6A] focus:outline-none text-xs sm:text-sm font-semibold text-slate-800 transition-all"
+            />
           </div>
-        )}
+        </div>
 
-        {/* STEP 3: Partner Preferences */}
-        {currentStep === 3 && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-purple-50">
-              <Users className="w-5 h-5 text-amber-600" />
-              <h3 className="text-base font-bold text-slate-900 font-heading">
-                Step 3: Partner Matching Preferences
-              </h3>
-            </div>
+        {/* 3. PROTECTED / READ-ONLY CREDENTIALS (Registered DB Info) */}
+        <div className="pt-3 border-t border-slate-100 space-y-3">
+          <span className="text-[11px] font-bold uppercase text-slate-400 block tracking-wider">
+            Protected Registration Credentials (Read Only)
+          </span>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Preferred Partner Gender</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Any', 'Female', 'Male'] as GenderPreference[]).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setPreferredGender(g)}
-                    className={`py-2.5 rounded-xl font-bold transition-colors ${
-                      preferredGender === g ? 'bg-purple-900 text-white' : 'bg-purple-50 text-slate-700'
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Looking For (Select multiple)</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Partner', 'Group', 'New Friends'] as LookingFor[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleLookingFor(item)}
-                    className={`py-2.5 rounded-xl font-bold transition-colors ${
-                      lookingFor.includes(item) ? 'bg-pink-600 text-white' : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Preferred Min Age</label>
-                <input
-                  type="number"
-                  min={18}
-                  max={40}
-                  value={ageMin}
-                  onChange={(e) => setAgeMin(parseInt(e.target.value) || 18)}
-                  className="w-full p-2.5 rounded-xl border border-purple-200 bg-white"
-                />
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Registered Email</span>
+                <span className="text-xs font-bold text-slate-700">{activeUser?.email || 'N/A'}</span>
               </div>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                ✓ Verified
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Preferred Max Age</label>
-                <input
-                  type="number"
-                  min={18}
-                  max={50}
-                  value={ageMax}
-                  onChange={(e) => setAgeMax(parseInt(e.target.value) || 35)}
-                  className="w-full p-2.5 rounded-xl border border-purple-200 bg-white"
-                />
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Registered Phone</span>
+                <span className="text-xs font-bold text-slate-700">{activeUser?.phone || 'N/A'}</span>
               </div>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                ✓ Verified
+              </span>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* STEP 4: Availability */}
-        {currentStep === 4 && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-purple-50">
-              <Clock className="w-5 h-5 text-purple-600" />
-              <h3 className="text-base font-bold text-slate-900 font-heading">
-                Step 4: Festival Availability & Timing
-              </h3>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Main Festival Date</label>
-              <input
-                type="date"
-                value={availabilityDate}
-                onChange={(e) => setAvailabilityDate(e.target.value)}
-                className="w-full p-3 rounded-xl border border-purple-200 bg-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Arrival Time</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Departure Time</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-purple-200 bg-white"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 5: Bio & Photo */}
-        {currentStep === 5 && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-purple-50">
-              <Camera className="w-5 h-5 text-pink-600" />
-              <h3 className="text-base font-bold text-slate-900 font-heading">
-                Step 5: Bio & Profile Photo
-              </h3>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">About You / Festival Bio</label>
-              <textarea
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell potential partners about your favorite steps, songs, and what makes you excited for Navratri..."
-                className="w-full p-3 rounded-xl border border-purple-200 bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Select Profile Photo</label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {sampleAvatars.map((url, idx) => (
-                  <img
-                    key={idx}
-                    src={url}
-                    alt="avatar option"
-                    onClick={() => setAvatar(url)}
-                    className={`aspect-square rounded-2xl object-cover cursor-pointer transition-all ${
-                      avatar === url ? 'ring-4 ring-pink-500 scale-105' : 'opacity-70 hover:opacity-100'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-purple-50">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="py-2.5 px-5 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center gap-1.5"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Previous
-            </button>
-          ) : (
-            <div />
-          )}
-
+        {/* Submit Action Buttons */}
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
           <button
             type="button"
-            onClick={handleNext}
-            className="py-2.5 px-6 rounded-xl font-bold text-xs sm:text-sm text-white festive-gradient hover:opacity-95 shadow-md shadow-pink-500/20 flex items-center gap-1.5 transition-transform active:scale-95"
+            onClick={() => navigate('/profile')}
+            className="px-5 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
           >
-            <span>{currentStep === 5 ? 'Save & Finish' : 'Next Step'}</span>
-            <ArrowRight className="w-4 h-4" />
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            disabled={isSaving || isCompressingPhoto}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#FF1E6A] via-pink-500 to-[#9333EA] hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span>{isSaving ? 'Saving Changes…' : 'Save Changes'}</span>
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

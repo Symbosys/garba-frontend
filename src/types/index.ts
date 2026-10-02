@@ -13,7 +13,9 @@ export interface User {
   dateOfBirth?: string;
   gender: 'Female' | 'Male' | 'Non-Binary' | 'Other';
   city: string;
+  state?: string;
   area: string;
+  addressLine?: string;
   bio: string;
   garbaLevel: DanceLevel;
   dandiyaLevel: DanceLevel;
@@ -38,6 +40,7 @@ export interface User {
   premiumPlan?: string;
   profileCompletion: number; // 0-100
   joinedAt: string;
+  createdAt?: string;
   status: 'active' | 'suspended' | 'banned';
   reportCount?: number;
 }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, FestivalEvent } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { calculateMatchScore, formatMatchLabel } from '../../utils/matching';
-import { RequestPartnerModal } from '../modals/RequestPartnerModal';
+import { calculateMatchScore } from '../../utils/matching';
+import { useStartConversation } from '../../hooks/chat/useChat';
 import { ReportModal } from '../modals/ReportModal';
 import { BlockModal } from '../modals/BlockModal';
 import {
@@ -12,14 +13,11 @@ import {
   Calendar,
   Clock,
   Sparkles,
-  Send,
+  MessageCircle,
+  Loader2,
   MoreVertical,
   Flag,
   Ban,
-  Check,
-  Zap,
-  Music,
-  UserCheck
 } from 'lucide-react';
 
 interface PartnerCardProps {
@@ -29,20 +27,20 @@ interface PartnerCardProps {
 }
 
 export const PartnerCard: React.FC<PartnerCardProps> = ({ partner, currentEvent, onSkip }) => {
+  const navigate = useNavigate();
   const {
     currentUser,
-    hasRequestedPartner,
     isFavorite,
     toggleFavorite,
     events,
-    matches,
     isUserBlocked
   } = useApp();
 
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const startConversation = useStartConversation();
 
   // If user is blocked, do not render
   if (isUserBlocked(partner.id)) return null;
@@ -55,9 +53,23 @@ export const PartnerCard: React.FC<PartnerCardProps> = ({ partner, currentEvent,
 
   // Calculate matching score
   const matchResult = calculateMatchScore(currentUser, partner, candidateEvent);
-  const isAlreadyRequested = candidateEvent ? hasRequestedPartner(partner.id, candidateEvent.id) : false;
-  const isAlreadyMatched = matches.some((m) => m.users.includes(partner.id));
   const isFav = isFavorite(partner.id);
+
+  const handleStartChat = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await startConversation.mutateAsync(partner.id);
+      if (res?.conversationId) {
+        navigate(`/messages?id=${res.conversationId}`);
+      } else {
+        navigate('/messages');
+      }
+    } catch (err) {
+      console.error('Failed to initiate conversation:', err);
+      navigate('/messages');
+    }
+  };
 
   return (
     <>
@@ -216,54 +228,34 @@ export const PartnerCard: React.FC<PartnerCardProps> = ({ partner, currentEvent,
             </div>
           </div>
 
-          {/* Card Action Buttons */}
+          {/* Card Action Buttons: Chat Redirect */}
           <div className="pt-2 flex items-center gap-2">
-            {isAlreadyMatched ? (
-              <div className="w-full py-2.5 px-4 rounded-2xl bg-emerald-100 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1.5">
-                <Check className="w-4 h-4" />
-                Matched Partner 🎉
-              </div>
-            ) : isAlreadyRequested ? (
+            {onSkip && (
               <button
-                disabled
-                className="w-full py-2.5 px-4 rounded-2xl bg-purple-100 text-purple-700 text-xs font-bold cursor-default flex items-center justify-center gap-1.5"
+                onClick={onSkip}
+                className="py-2.5 px-3 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors"
+                title="Skip candidate"
               >
-                <Check className="w-4 h-4 text-purple-600" />
-                Request Sent
+                Skip
               </button>
-            ) : (
-              <>
-                {onSkip && (
-                  <button
-                    onClick={onSkip}
-                    className="py-2.5 px-3 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors"
-                    title="Skip candidate"
-                  >
-                    Skip
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsRequestModalOpen(true)}
-                  className="flex-1 py-2.5 px-4 rounded-2xl font-bold text-xs text-white festive-gradient hover:opacity-95 shadow-md shadow-pink-500/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  Request Partner
-                </button>
-              </>
             )}
+            <button
+              onClick={handleStartChat}
+              disabled={startConversation.isPending}
+              className="flex-1 py-2.5 px-4 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF1E6A] via-pink-500 to-[#9333EA] hover:opacity-95 shadow-md shadow-pink-500/20 flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
+            >
+              {startConversation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MessageCircle className="w-4 h-4" />
+              )}
+              <span>{startConversation.isPending ? 'Opening Chat…' : 'Chat'}</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Interactive Modals */}
-      <RequestPartnerModal
-        candidate={partner}
-        event={candidateEvent}
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-        matchScore={matchResult.score}
-      />
-
       <ReportModal
         userToReport={partner}
         isOpen={isReportModalOpen}

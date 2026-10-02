@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import { useAuth } from './context/AuthContext';
 import { Layout } from './components/layout/Layout';
 import { AdminLayout } from './components/layout/AdminLayout';
+import { ScrollToTop } from './components/common/ScrollToTop';
 
 // Public Pages
 import { FindPartnerPage } from './pages/public/FindPartnerPage';
@@ -137,6 +138,7 @@ export const App: React.FC = () => {
   return (
     <AppProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Main Layout Routes */}
           <Route element={<Layout />}>

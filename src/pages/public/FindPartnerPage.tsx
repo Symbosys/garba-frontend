@@ -9,18 +9,12 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { PartnerCardSkeleton } from '../../components/common/LoadingSkeleton';
 import { calculateMatchScore } from '../../utils/matching';
 import {
-  MapPin,
-  Calendar,
-  Sparkles,
-  Music,
-  Loader2,
-  Users
+  Loader2
 } from 'lucide-react';
 import { LookingFor, User, FestivalEvent } from '../../types';
 
 export const FindPartnerPage: React.FC = () => {
   const {
-    cities,
     currentUser,
     searchFilters,
     setSearchFilters,
@@ -252,134 +246,7 @@ export const FindPartnerPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* 1. TOP HEADER & SEARCH BAR */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#280c44] via-[#3b1260] to-[#1d0733] text-white shadow-xl space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/20 text-pink-300 text-xs font-bold uppercase tracking-wider mb-2 border border-pink-500/30">
-              <Sparkles className="w-3.5 h-3.5" />
-              Live Registered Partners
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black font-heading">
-              Find Your Garba & Dandiya Partner
-            </h1>
-            <p className="text-xs sm:text-sm text-purple-200/80 mt-1">
-              Showing verified registered dancers attending {activeEvent ? <strong className="text-amber-300">{activeEvent.title}</strong> : 'upcoming events'} in {searchFilters.city || selectedStateName}.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-purple-300/30 text-xs font-bold text-pink-200 flex items-center gap-2">
-              <Users className="w-4 h-4 text-pink-400" />
-              <span>
-                <strong className="text-white text-base font-black mr-1">{totalPartnersCount || sortedPartners.length}</strong>
-                Registered Partners
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Top Search Filter Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-2">
-          {/* City */}
-          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
-            <label className="block text-[10px] font-bold text-purple-200 uppercase mb-0.5 flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-pink-400" />
-              City
-            </label>
-            <select
-              value={searchFilters.city}
-              onChange={(e) => {
-                const newCity = e.target.value;
-                setSelectedCity(newCity);
-                const firstEvent = displayEvents.find((ev) => ev.city.toLowerCase() === newCity.toLowerCase());
-                setSearchFilters((prev) => ({
-                  ...prev,
-                  city: newCity,
-                  eventId: firstEvent ? firstEvent.id : prev.eventId
-                }));
-              }}
-              className="w-full bg-transparent font-bold text-xs sm:text-sm text-white focus:outline-none cursor-pointer"
-            >
-              <option value="" className="text-slate-900">All Cities in {selectedStateName}</option>
-              {cities.map((c) => (
-                <option key={c.id} value={c.name} className="text-slate-900">
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Event */}
-          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 sm:col-span-2 lg:col-span-2">
-            <label className="block text-[10px] font-bold text-purple-200 uppercase mb-0.5 flex items-center gap-1">
-              <Music className="w-3 h-3 text-purple-300" />
-              Event
-            </label>
-            <select
-              value={searchFilters.eventId}
-              onChange={(e) => setSearchFilters((prev) => ({ ...prev, eventId: e.target.value }))}
-              className="w-full bg-transparent font-bold text-xs sm:text-sm text-white focus:outline-none cursor-pointer truncate"
-            >
-              {availableEventsInCity.length > 0 ? (
-                availableEventsInCity.map((ev) => (
-                  <option key={ev.id} value={ev.id} className="text-slate-900">
-                    {ev.title} ({ev.displayDate || ev.date})
-                  </option>
-                ))
-              ) : displayEvents.length > 0 ? (
-                displayEvents.map((ev) => (
-                  <option key={ev.id} value={ev.id} className="text-slate-900">
-                    {ev.title} ({ev.city})
-                  </option>
-                ))
-              ) : (
-                <option value="" className="text-slate-900">All Upcoming Events</option>
-              )}
-            </select>
-          </div>
-
-          {/* Date */}
-          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
-            <label className="block text-[10px] font-bold text-purple-200 uppercase mb-0.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-amber-400" />
-              Date
-            </label>
-            <input
-              type="date"
-              value={searchFilters.date}
-              onChange={(e) => setSearchFilters((prev) => ({ ...prev, date: e.target.value }))}
-              className="w-full bg-transparent font-bold text-xs sm:text-sm text-white focus:outline-none cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {/* 2. TABS (All, Need Partner, Groups, New Friends) */}
-        <div className="flex items-center justify-between pt-2 border-t border-purple-800/60 flex-wrap gap-3">
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-purple-950/60 border border-purple-800/60 overflow-x-auto">
-            {[
-              { key: 'all', label: 'All Dancers' },
-              { key: 'need_partner', label: 'Looking for Partner' },
-              { key: 'groups', label: 'Squad Groups' },
-              { key: 'new_friends', label: 'New Friends' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setSearchFilters((prev) => ({ ...prev, tab: tab.key as any }))}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                  searchFilters.tab === tab.key
-                    ? 'bg-pink-600 text-white shadow-md'
-                    : 'text-purple-200/80 hover:text-white hover:bg-purple-900/60'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 3. PARTNER CARDS RESULTS GRID */}
+      {/* PARTNER CARDS RESULTS GRID */}
       <main className="w-full space-y-6">
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span className="font-semibold text-slate-700">

@@ -24,7 +24,6 @@ import { useApp } from '../../context/AppContext';
 import { useLocationStore } from '../../store/useLocationStore';
 import { useEvents, EventItem } from '../../hooks/events/useEvents';
 import { useInfiniteUsers, PublicUser } from '../../hooks/users/useUsers';
-import { RequestPartnerModal } from '../../components/modals/RequestPartnerModal';
 import { User, FestivalEvent } from '../../types';
 import { useStartConversation, useConversations } from '../../hooks/chat/useChat';
 
@@ -177,47 +176,11 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  // Selected candidate for request modal
-  const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-
   // Dynamic KPI counts
   const pendingRequestsCount = 0;
   const matchesCount = 0;
   const messagesCount = conversations?.reduce((acc, c) => acc + (c.unreadCount || 0), 0) || 0;
   const upcomingEventsCount = displayEvents.length;
-
-  const handleOpenRequest = (partnerItem: typeof displayPartners[0]) => {
-    const userToRequest: User = {
-      id: partnerItem.id,
-      name: partnerItem.name,
-      email: `${partnerItem.name.toLowerCase().replace(/\s+/g, '')}@example.com`,
-      avatar: partnerItem.avatar,
-      age: partnerItem.age,
-      city: partnerItem.city,
-      area: partnerItem.state,
-      gender: partnerItem.gender as any,
-      garbaLevel: partnerItem.garbaLevel as any,
-      dandiyaLevel: partnerItem.dandiyaLevel as any,
-      danceStyle: 'Traditional',
-      lookingFor: ['Partner'],
-      preferredGender: 'Any',
-      preferredAgeMin: 18,
-      preferredAgeMax: 35,
-      preferredEvents: [],
-      availability: { dates: [], startTime: '19:00', endTime: '23:00' },
-      bio: `Attending Garba night in ${partnerItem.city}! Looking for enthusiastic dance partner.`,
-      isVerified: { mobile: true, email: true, photo: true },
-      role: 'user',
-      isPremium: true,
-      profileCompletion: 90,
-      joinedAt: '2026-09-01',
-      status: 'active'
-    };
-
-    setSelectedPartner(userToRequest);
-    setIsRequestModalOpen(true);
-  };
 
   // Slider State for Events
   const [currentEventSlide, setCurrentEventSlide] = useState(0);
@@ -665,10 +628,11 @@ export const DashboardPage: React.FC = () => {
                     <div className="pt-2 flex items-center gap-2">
                       <button
                         onClick={() => handleOpenViewPartner(partner)}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF1E6A] to-pink-500 hover:from-[#E1145A] hover:to-pink-600 text-white text-xs font-bold shadow-md shadow-pink-500/20 flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        title="View Profile"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>View Partner</span>
+                        <span>View</span>
                       </button>
 
                       <button
@@ -679,14 +643,15 @@ export const DashboardPage: React.FC = () => {
                           handleStartChatWithPartner(partner.id);
                         }}
                         disabled={chatLoadingPartnerId === partner.id}
-                        className="w-10 h-10 rounded-xl bg-white hover:bg-pink-50 text-[#FF1E6A] border border-pink-200 flex items-center justify-center shadow-sm transition-all active:scale-95 flex-shrink-0 cursor-pointer disabled:opacity-50"
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF1E6A] via-pink-500 to-[#9333EA] hover:opacity-95 text-white text-xs font-bold shadow-md shadow-pink-500/20 flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
                         title={`Chat with ${partner.name}`}
                       >
                         {chatLoadingPartnerId === partner.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-[#FF1E6A]" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                         ) : (
-                          <MessageCircle className="w-4 h-4" />
+                          <MessageCircle className="w-3.5 h-3.5" />
                         )}
+                        <span>{chatLoadingPartnerId === partner.id ? 'Opening Chat…' : 'Chat'}</span>
                       </button>
                     </div>
                   </div>
@@ -714,15 +679,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Interactive Request Partner Modal */}
-      <RequestPartnerModal
-        candidate={selectedPartner}
-        event={null}
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-        matchScore={92}
-      />
     </div>
   );
 };

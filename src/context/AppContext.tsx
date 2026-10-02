@@ -42,8 +42,10 @@ const mapAuthenticatedUser = (user: AuthUser): User => ({
   age: user.age || 18,
   gender: user.gender === 'MALE' ? 'Male' : user.gender === 'FEMALE' ? 'Female' : user.gender === 'NON_BINARY' ? 'Non-Binary' : 'Other',
   city: user.city,
-  area: user.state,
-  bio: '',
+  state: user.state,
+  addressLine: user.addressLine,
+  area: user.addressLine || user.state,
+  bio: `${user.role === 'PARTNER' ? 'Festival Dancer' : 'Event Organizer'} from ${user.city}`,
   garbaLevel: 'Beginner',
   dandiyaLevel: 'Beginner',
   danceStyle: 'Traditional',
@@ -56,8 +58,9 @@ const mapAuthenticatedUser = (user: AuthUser): User => ({
   isVerified: { mobile: true, email: true, photo: user.photos.length > 0 },
   role: user.role === 'SUPER_ADMIN' ? 'admin' : 'user',
   isPremium: false,
-  profileCompletion: 70,
+  profileCompletion: 85,
   joinedAt: user.createdAt,
+  createdAt: user.createdAt,
   status: user.status === 'SUSPENDED' ? 'suspended' : 'active',
 });
 
