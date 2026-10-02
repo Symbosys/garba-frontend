@@ -136,10 +136,18 @@ export const MessagesPage: React.FC = () => {
 
   // Sync selected conversation with URL parameter or select first on desktop when loaded
   useEffect(() => {
-    if (queryConvId && selectedConvId !== queryConvId) {
-      setSelectedConvId(queryConvId);
-    } else if (!selectedConvId && conversationList.length > 0 && typeof window !== 'undefined' && window.innerWidth >= 768) {
-      setSelectedConvId(conversationList[0].id);
+    if (queryConvId) {
+      if (selectedConvId !== queryConvId) {
+        setSelectedConvId(queryConvId);
+      }
+    } else {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        if (selectedConvId) {
+          setSelectedConvId('');
+        }
+      } else if (!selectedConvId && conversationList.length > 0) {
+        setSelectedConvId(conversationList[0].id);
+      }
     }
   }, [queryConvId, conversationList, selectedConvId]);
 
@@ -316,8 +324,11 @@ export const MessagesPage: React.FC = () => {
     });
   }, [conversationList, activeTab, searchQuery]);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSendMessage = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const text = inputText.trim();
     if (!text) return;
 
@@ -327,9 +338,9 @@ export const MessagesPage: React.FC = () => {
     setInputText('');
 
     // Keep mobile keypad / input focus active without closing keyboard
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,7 +350,7 @@ export const MessagesPage: React.FC = () => {
 
   const handleSelectConversation = (convId: string) => {
     setSelectedConvId(convId);
-    setSearchParams({ id: convId });
+    setSearchParams({ id: convId }, { replace: true });
   };
 
   return (
@@ -356,7 +367,13 @@ export const MessagesPage: React.FC = () => {
             <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 space-y-3.5">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate(-1)}
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      navigate(-1);
+                    } else {
+                      navigate('/dashboard');
+                    }
+                  }}
                   className="p-1 -ml-1 text-slate-800 hover:text-pink-600 transition-colors cursor-pointer"
                   aria-label="Back"
                 >
@@ -542,7 +559,7 @@ export const MessagesPage: React.FC = () => {
                     <button
                       onClick={() => {
                         setSelectedConvId('');
-                        setSearchParams({});
+                        setSearchParams({}, { replace: true });
                       }}
                       className="p-1 -ml-1 rounded-xl text-slate-800 hover:text-pink-600 transition-colors flex-shrink-0 cursor-pointer"
                       aria-label="Back to conversations"
@@ -730,13 +747,18 @@ export const MessagesPage: React.FC = () => {
 
                 {/* Bottom Message Composer */}
                 <div className="p-2.5 sm:p-4 bg-white border-t border-slate-100 flex-shrink-0 sticky bottom-0 z-20">
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3 w-full">
+                  <div className="flex items-center gap-2 sm:gap-3 w-full">
                     {/* Pill Input Container */}
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border border-pink-500 bg-white focus-within:ring-2 focus-within:ring-pink-400/20 transition-all shadow-2xs">
                       {/* Emoji Icon */}
                       <button
                         type="button"
-                        onClick={() => setInputText((prev) => prev + '💃 ')}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onTouchStart={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setInputText((prev) => prev + '💃 ');
+                          inputRef.current?.focus({ preventScroll: true });
+                        }}
                         className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer flex-shrink-0"
                         title="Insert emoji"
                       >
@@ -749,6 +771,12 @@ export const MessagesPage: React.FC = () => {
                         type="text"
                         value={inputText}
                         onChange={handleInputChange}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
                         placeholder="Type a message..."
                         className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
                       />
@@ -757,6 +785,7 @@ export const MessagesPage: React.FC = () => {
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
+                        onTouchStart={(e) => e.preventDefault()}
                         className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer flex-shrink-0"
                         title="Send photo"
                       >
@@ -767,6 +796,7 @@ export const MessagesPage: React.FC = () => {
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
+                        onTouchStart={(e) => e.preventDefault()}
                         className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer flex-shrink-0"
                         title="Attach file"
                       >
@@ -776,8 +806,19 @@ export const MessagesPage: React.FC = () => {
 
                     {/* Circular Pink Send Button */}
                     <button
-                      type="submit"
-                      onMouseDown={(e) => e.preventDefault()}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }}
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-500/25 transition-all active:scale-95 flex-shrink-0 cursor-pointer ${
                         !inputText.trim() ? 'opacity-40 pointer-events-none' : 'opacity-100'
                       }`}
@@ -785,7 +826,7 @@ export const MessagesPage: React.FC = () => {
                     >
                       <Send className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
                     </button>
-                  </form>
+                  </div>
                 </div>
               </>
             ) : (
