@@ -134,22 +134,20 @@ export const MessagesPage: React.FC = () => {
     return '';
   });
 
-  // Sync selected conversation with URL parameter or select first on desktop when loaded
+  // Sync selected conversation with URL parameter
   useEffect(() => {
     if (queryConvId) {
-      if (selectedConvId !== queryConvId) {
-        setSelectedConvId(queryConvId);
-      }
+      setSelectedConvId(queryConvId);
     } else {
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        if (selectedConvId) {
-          setSelectedConvId('');
+      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+        if (conversationList.length > 0) {
+          setSelectedConvId((prev) => prev || conversationList[0].id);
         }
-      } else if (!selectedConvId && conversationList.length > 0) {
-        setSelectedConvId(conversationList[0].id);
+      } else {
+        setSelectedConvId('');
       }
     }
-  }, [queryConvId, conversationList, selectedConvId]);
+  }, [queryConvId, conversationList]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'matches' | 'groups'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,6 +160,7 @@ export const MessagesPage: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLengthRef = useRef(0);
+  const lastBackActionTimeRef = useRef(0);
 
   // 2. Active Chat hook with real-time WebSocket connection
   const {
@@ -223,9 +222,9 @@ export const MessagesPage: React.FC = () => {
   // Resolve currently active conversation object
   const activeConversation: DynamicConversationItem | null = useMemo(() => {
     if (!selectedConvId) {
-      return conversationList[0] || null;
+      return typeof window !== 'undefined' && window.innerWidth >= 768 ? (conversationList[0] || null) : null;
     }
-    return conversationList.find((c) => c.id === selectedConvId) || conversationList[0] || null;
+    return conversationList.find((c) => c.id === selectedConvId) || null;
   }, [conversationList, selectedConvId]);
 
   // Construct target user representation for safety modals
@@ -353,6 +352,36 @@ export const MessagesPage: React.FC = () => {
     setSearchParams({ id: convId }, { replace: true });
   };
 
+  const handleBackFromChat = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    lastBackActionTimeRef.current = Date.now();
+    if (inputRef.current) {
+      inputRef.current.blur();
+    }
+    setSelectedConvId('');
+    setSearchParams({}, { replace: true });
+  };
+
+  const handleBackFromList = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Prevent ghost click / tap bleed-through when returning from chat screen
+    if (Date.now() - lastBackActionTimeRef.current < 600) {
+      return;
+    }
+    lastBackActionTimeRef.current = Date.now();
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div className="w-full bg-[#FAF7FD] h-[100dvh] md:h-[calc(100vh-80px)] flex flex-col justify-stretch overflow-hidden">
       <div className="max-w-[1400px] w-full mx-auto md:px-4 lg:px-6 md:py-4 h-full">
@@ -367,13 +396,16 @@ export const MessagesPage: React.FC = () => {
             <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 space-y-3.5">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => {
-                    if (window.history.length > 1) {
-                      navigate(-1);
-                    } else {
-                      navigate('/dashboard');
-                    }
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleBackFromList(e);
                   }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    handleBackFromList(e);
+                  }}
+                  onClick={handleBackFromList}
                   className="p-1 -ml-1 text-slate-800 hover:text-pink-600 transition-colors cursor-pointer"
                   aria-label="Back"
                 >
@@ -557,10 +589,16 @@ export const MessagesPage: React.FC = () => {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Back Button */}
                     <button
-                      onClick={() => {
-                        setSelectedConvId('');
-                        setSearchParams({}, { replace: true });
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleBackFromChat(e);
                       }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        handleBackFromChat(e);
+                      }}
+                      onClick={handleBackFromChat}
                       className="p-1 -ml-1 rounded-xl text-slate-800 hover:text-pink-600 transition-colors flex-shrink-0 cursor-pointer"
                       aria-label="Back to conversations"
                     >

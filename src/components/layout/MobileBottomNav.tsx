@@ -1,10 +1,15 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useConversations } from '../../hooks/chat/useChat';
 import { Home, Search, Calendar, MessageCircle, User } from 'lucide-react';
 
 export const MobileBottomNav: React.FC = () => {
   const { isLoggedIn, unreadNotificationCount } = useApp();
+  const { data: apiConversations } = useConversations();
+  const totalChats = React.useMemo(() => {
+    return apiConversations ? apiConversations.length : 0;
+  }, [apiConversations]);
   const location = useLocation();
 
   // Hide on admin routes to prevent cluttering admin operations
@@ -63,7 +68,14 @@ export const MobileBottomNav: React.FC = () => {
             }`
           }
         >
-          <MessageCircle className="w-5 h-5" />
+          <div className="relative">
+            <MessageCircle className="w-5 h-5" />
+            {isLoggedIn && totalChats > 0 && (
+              <span className="absolute -top-1 -right-2 px-1 min-w-[15px] h-3.5 bg-[#FF1E6A] text-white text-[9px] font-extrabold rounded-full flex items-center justify-center shadow-xs">
+                {totalChats > 99 ? '99+' : totalChats}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] mt-0.5">{isLoggedIn ? 'Chat' : 'Login'}</span>
         </NavLink>
 

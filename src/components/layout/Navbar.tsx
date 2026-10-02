@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useConversations } from '../../hooks/chat/useChat';
 import { GarbaLogo } from '../common/GarbaLogo';
 import {
   MapPin,
@@ -34,6 +35,11 @@ export const Navbar: React.FC = () => {
     markNotificationAsRead,
     markAllNotificationsAsRead
   } = useApp();
+
+  const { data: apiConversations } = useConversations();
+  const totalChats = React.useMemo(() => {
+    return apiConversations ? apiConversations.length : 0;
+  }, [apiConversations]);
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -516,102 +522,21 @@ export const Navbar: React.FC = () => {
             )}
           </div>
 
-          {/* If Logged In: Notifications + Messages + User Avatar */}
+          {/* If Logged In: Messages + User Avatar */}
           {isLoggedIn && currentUser ? (
             <>
-              {/* Notifications Bell */}
-              <div className="relative" ref={notifDropdownRef}>
-                <button
-                  onClick={() => setIsNotifOpen(!isNotifOpen)}
-                  className="relative p-1.5 sm:p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
-                  aria-label="Notifications"
-                >
-                  <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-                  <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#FF1E6A] text-white text-[9px] sm:text-[10px] font-extrabold rounded-full flex items-center justify-center">
-                    {unreadNotificationCount > 0 ? unreadNotificationCount : 3}
-                  </span>
-                </button>
-
-                {isNotifOpen && (
-                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 rounded-2xl bg-white shadow-2xl border border-purple-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-2 border-b border-purple-50 px-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-purple-950">Notifications</h4>
-                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-pink-100 text-pink-700">
-                          {unreadNotificationCount > 0 ? unreadNotificationCount : 3} New
-                        </span>
-                      </div>
-                      {unreadNotificationCount > 0 && (
-                        <button
-                          onClick={markAllNotificationsAsRead}
-                          className="text-[11px] font-bold text-purple-700 hover:text-purple-900"
-                        >
-                          Mark all as read
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-72 overflow-y-auto py-1 space-y-1">
-                      {notifications.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-slate-400">No new notifications</div>
-                      ) : (
-                        notifications.slice(0, 5).map((notif) => (
-                          <div
-                            key={notif.id}
-                            onClick={() => {
-                              markNotificationAsRead(notif.id);
-                              if (notif.actionUrl) navigate(notif.actionUrl);
-                              setIsNotifOpen(false);
-                            }}
-                            className={`p-2.5 rounded-xl cursor-pointer transition-colors flex items-start gap-3 ${
-                              notif.isRead ? 'bg-white hover:bg-slate-50' : 'bg-purple-50/80 hover:bg-purple-100/60'
-                            }`}
-                          >
-                            {notif.senderAvatar ? (
-                              <img
-                                src={notif.senderAvatar}
-                                alt="avatar"
-                                className="w-8 h-8 rounded-full object-cover border border-pink-300"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-xs">
-                                GM
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-900 leading-tight">{notif.title}</p>
-                              <p className="text-[11px] text-slate-600 truncate mt-0.5">{notif.message}</p>
-                              <span className="text-[10px] text-slate-400 mt-1 block">{notif.timestamp}</span>
-                            </div>
-                            {!notif.isRead && <span className="w-2 h-2 rounded-full bg-pink-500 mt-1.5 flex-shrink-0" />}
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t border-purple-50 text-center">
-                      <Link
-                        to="/notifications"
-                        onClick={() => setIsNotifOpen(false)}
-                        className="text-xs font-bold text-purple-700 hover:text-purple-900"
-                      >
-                        View All Notifications →
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Messages Icon Button (Desktop only, mobile has bottom bar) */}
               <Link
                 to="/messages"
-                className="hidden md:flex relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
+                className="relative p-2 text-slate-700 hover:text-pink-600 hover:bg-pink-50/50 rounded-full transition-colors flex-shrink-0"
                 aria-label="Messages"
               >
                 <MessageCircle className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-4 h-4 bg-[#FF1E6A] text-white text-[10px] font-extrabold rounded-full flex items-center justify-center">
-                  5
-                </span>
+                {totalChats > 0 && (
+                  <span className="absolute top-1 right-1 px-1 min-w-[16px] h-4 bg-[#FF1E6A] text-white text-[10px] font-extrabold rounded-full flex items-center justify-center">
+                    {totalChats > 99 ? '99+' : totalChats}
+                  </span>
+                )}
               </Link>
 
               {/* User Avatar & Menu */}
@@ -713,42 +638,8 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
-          {/* Mobile Hamburger Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-1.5 sm:p-2 text-slate-700 hover:text-purple-900 rounded-xl hover:bg-purple-50 lg:hidden transition-colors flex-shrink-0"
-            aria-label="Toggle navigation"
-          >
-            {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Nav Drawer */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden border-t border-purple-100 bg-white/95 backdrop-blur-xl px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-4 duration-200">
-          <div className="grid grid-cols-2 gap-2">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.path}
-                to={link.path}
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between ${
-                    isActive ? 'bg-purple-100 text-purple-950 font-bold' : 'text-slate-700 hover:bg-purple-50'
-                  }`
-                }
-              >
-                <span>{link.label}</span>
-                {link.badge && (
-                  <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase rounded bg-pink-500 text-white">
-                    {link.badge}
-                  </span>
-                )}
-              </NavLink>
-            ))}
           </div>
-        </div>
-      )}
+      </div>
     </header>
   );
 };
