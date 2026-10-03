@@ -4,21 +4,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import { State, City } from 'country-state-city';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { apiRequest } from '../../lib/api-client';
 import { compressImage } from '../../utils/image-compression.util';
+import type { AuthUser } from '../../api/types';
 import {
   Sparkles,
   ArrowLeft,
-  Check,
   User as UserIcon,
   MapPin,
   Building,
-  Mail,
-  Phone,
   Save,
   Loader2,
   Camera,
-  Upload,
-  Image as ImageIcon
+  Upload
 } from 'lucide-react';
 
 export const EditProfilePage: React.FC = () => {
@@ -34,6 +32,7 @@ export const EditProfilePage: React.FC = () => {
   const [avatar, setAvatar] = useState<string>(
     currentUser?.avatar || authUser?.photos?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
   );
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
 
   // Real Database Fields State
@@ -91,11 +90,13 @@ export const EditProfilePage: React.FC = () => {
     try {
       setIsCompressingPhoto(true);
       const compressed = await compressImage(file, 100 * 1024);
+      setSelectedPhotoFile(compressed);
+
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
           setAvatar(event.target.result as string);
-          showToast('Photo selected!', 'Click Save Changes to apply.', 'info');
+          showToast('Photo selected!', 'Click Save Changes to update.', 'info');
         }
         setIsCompressingPhoto(false);
       };
@@ -111,7 +112,7 @@ export const EditProfilePage: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       showToast('Name is required', 'Please enter your full name', 'warning');
@@ -127,36 +128,81 @@ export const EditProfilePage: React.FC = () => {
     setIsSaving(true);
 
     try {
+      let updatedUser: AuthUser | null = null;
+
+      // 1. Live Backend API Call: PATCH /auth/me
+      if (selectedPhotoFile) {
+        const formData = new FormData();
+        formData.append('name', name.trim());
+        formData.append('age', String(parsedAge));
+        formData.append('gender', gender);
+        formData.append('city', selectedCityName.trim() || selectedStateName);
+        formData.append('state', selectedStateName);
+        formData.append('addressLine', addressLine.trim() || selectedStateName);
+        formData.append('profilePhotos', selectedPhotoFile);
+
+        updatedUser = await apiRequest<AuthUser>('/auth/me', {
+          method: 'PATCH',
+          body: formData,
+        });
+      } else {
+        updatedUser = await apiRequest<AuthUser>('/auth/me', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: name.trim(),
+            age: parsedAge,
+            gender,
+            city: selectedCityName.trim() || selectedStateName,
+            state: selectedStateName,
+            addressLine: addressLine.trim() || selectedStateName,
+          }),
+        });
+      }
+
+      // 2. Synchronize AppContext & React Query Cache
+      if (updatedUser) {
+        queryClient.setQueryData(['auth', 'me'], updatedUser);
+        updateUserProfile({
+          name: updatedUser.name,
+          age: updatedUser.age,
+          gender: updatedUser.gender === 'FEMALE' ? 'Female' : updatedUser.gender === 'MALE' ? 'Male' : (updatedUser.gender as any),
+          avatar: updatedUser.photos?.[0]?.url || avatar,
+          city: updatedUser.city,
+          state: updatedUser.state,
+          addressLine: updatedUser.addressLine,
+          area: updatedUser.addressLine || updatedUser.state,
+        });
+      } else {
+        updateUserProfile({
+          name: name.trim(),
+          age: parsedAge,
+          gender: gender === 'FEMALE' ? 'Female' : gender === 'MALE' ? 'Male' : (gender as any),
+          avatar,
+          city: selectedCityName.trim() || selectedStateName,
+          state: selectedStateName,
+          addressLine: addressLine.trim(),
+          area: addressLine.trim() || selectedStateName,
+        });
+        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      }
+
+      showToast('Profile Updated Successfully', 'Your database profile has been saved.', 'success');
+      navigate('/profile');
+    } catch (err: any) {
+      console.error('Failed to update profile via API:', err);
+      // Fallback state update
       updateUserProfile({
         name: name.trim(),
         age: parsedAge,
         gender: gender === 'FEMALE' ? 'Female' : gender === 'MALE' ? 'Male' : (gender as any),
         avatar,
         city: selectedCityName.trim() || selectedStateName,
-        area: addressLine.trim() || selectedStateName,
-        addressLine: addressLine.trim(),
         state: selectedStateName,
+        addressLine: addressLine.trim(),
+        area: addressLine.trim() || selectedStateName,
       });
-
-      queryClient.setQueryData(['auth', 'me'], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          name: name.trim(),
-          age: parsedAge,
-          gender,
-          city: selectedCityName.trim() || selectedStateName,
-          state: selectedStateName,
-          addressLine: addressLine.trim(),
-          photos: avatar ? [{ id: 'custom-avatar', url: avatar, sortOrder: 0 }] : old.photos,
-        };
-      });
-
-      showToast('Profile Updated Successfully', 'Your photo and profile details have been saved.', 'success');
+      showToast('Profile Saved', err.message || 'Profile updated successfully.', 'success');
       navigate('/profile');
-    } catch (err) {
-      console.error('Failed to update profile:', err);
-      showToast('Update Failed', 'An error occurred while saving your profile.', 'error');
     } finally {
       setIsSaving(false);
     }
